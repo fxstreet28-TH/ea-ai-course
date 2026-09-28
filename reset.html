@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050610">
+<meta name="robots" content="noindex">
+<title>ตั้งรหัสผ่านใหม่ — EA / AI</title>
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<main class="auth-page">
+  <a class="brand en" href="/">EA<span> / </span>AI<span>™</span></a>
+
+  <div class="auth-card panel">
+    <section id="view-loading" class="loading" style="min-height:160px" aria-live="polite">
+      <div><div class="spinner"></div>กำลังตรวจสอบลิงก์…</div>
+    </section>
+
+    <section id="view-form" hidden>
+      <span class="eyebrow en">NEW PASSWORD</span>
+      <h1>ตั้งรหัสผ่านใหม่</h1>
+      <p class="lead" id="for-email"></p>
+      <form id="form-reset" novalidate>
+        <div class="field">
+          <label for="new-password">รหัสผ่านใหม่</label>
+          <div class="input-wrap">
+            <input type="password" id="new-password" autocomplete="new-password" minlength="8" required aria-describedby="pw-hint">
+            <button type="button" class="toggle-pw" data-toggle="new-password" aria-label="แสดงรหัสผ่าน">แสดง</button>
+          </div>
+          <div class="hint" id="pw-hint">อย่างน้อย 8 ตัวอักษร</div>
+        </div>
+        <div class="field">
+          <label for="confirm-password">ยืนยันรหัสผ่านใหม่</label>
+          <div class="input-wrap">
+            <input type="password" id="confirm-password" autocomplete="new-password" minlength="8" required>
+            <button type="button" class="toggle-pw" data-toggle="confirm-password" aria-label="แสดงรหัสผ่าน">แสดง</button>
+          </div>
+        </div>
+        <button type="submit" class="btn block">บันทึกรหัสผ่านใหม่</button>
+        <div class="msg" id="reset-msg" role="alert" aria-live="polite"></div>
+      </form>
+    </section>
+
+    <section id="view-done" class="success-box" hidden>
+      <div class="icon" aria-hidden="true">✅</div>
+      <h1>เปลี่ยนรหัสผ่านแล้ว</h1>
+      <p>ครั้งต่อไปใช้รหัสผ่านใหม่นี้เข้าสู่ระบบได้เลย</p>
+      <a class="btn block" href="/learn.html">ไปห้องเรียน →</a>
+    </section>
+
+    <section id="view-invalid" class="success-box" hidden>
+      <div class="icon" aria-hidden="true">⚠️</div>
+      <h1>ลิงก์ไม่ถูกต้องหรือหมดอายุ</h1>
+      <p>ลิงก์ตั้งรหัสผ่านใช้ได้ครั้งเดียวและมีอายุจำกัด กรุณาขอลิงก์ใหม่อีกครั้ง</p>
+      <a class="btn block" href="/login.html?mode=forgot">ขอลิงก์ตั้งรหัสใหม่</a>
+    </section>
+  </div>
+
+  <p class="foot-note"><a href="/">← กลับหน้าแรก</a></p>
+</main>
+
+<script src="/assets/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/assets/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.EAAuth;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function show(view) {
+    ['loading', 'form', 'done', 'invalid'].forEach(function (v) { $('view-' + v).hidden = v !== view; });
+  }
+  function showMsg(text, kind) { var m = $('reset-msg'); m.className = 'msg ' + (kind || 'error'); m.textContent = text || ''; }
+
+  document.querySelectorAll('[data-toggle]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var input = $(b.getAttribute('data-toggle'));
+      var showPw = input.type === 'password';
+      input.type = showPw ? 'text' : 'password';
+      b.textContent = showPw ? 'ซ่อน' : 'แสดง';
+      b.setAttribute('aria-label', showPw ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน');
+    });
+  });
+
+  // A recovery session only counts when we arrived via the email link (?code= / ?token_hash=) or Supabase fired PASSWORD_RECOVERY.
+  var fromLink = /[?&](code|token_hash)=/.test(location.search) || /access_token=/.test(location.hash);
+  var recovery = false;
+
+  async function init() {
+    if (!A || !A.isConfigured() || A.getUrlAuthError()) { show('invalid'); return; }
+    A.onAuthStateChange(function (event) { if (event === 'PASSWORD_RECOVERY') recovery = true; });
+    try {
+      var link = await A.handleEmailLink();
+      if (link.error) { show('invalid'); return; }
+      var session = await A.getSession();
+      if (session && (fromLink || recovery)) {
+        $('for-email').textContent = 'สำหรับบัญชี ' + (session.user.email || '');
+        show('form');
+      } else {
+        show('invalid');
+      }
+    } catch (e) {
+      show('invalid');
+    }
+  }
+
+  $('form-reset').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var btn = this.querySelector('[type=submit]');
+    var pw = $('new-password').value;
+    var pw2 = $('confirm-password').value;
+    if (pw.length < 8) return showMsg('รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร');
+    if (pw !== pw2) return showMsg('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+    showMsg('');
+    btn.disabled = true; btn.textContent = 'กำลังดำเนินการ…';
+    try {
+      await A.updatePassword(pw);
+      show('done');
+    } catch (e) {
+      showMsg(A.mapAuthError(e));
+    }
+    btn.disabled = false; btn.textContent = 'บันทึกรหัสผ่านใหม่';
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
