@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="th">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ยืนยันอีเมลของคุณ</title></head>
+<body style="margin:0;padding:0;background:#050610;font-family:'Noto Sans Thai',Tahoma,Arial,sans-serif;color:#f3f4ff">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#050610;padding:32px 16px">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#101125;border:1px solid #282b49;border-radius:16px">
+        <tr><td style="padding:32px 32px 8px;font:700 24px Arial,sans-serif;letter-spacing:-1px;color:#f3f4ff">EA<span style="color:#6eeaff"> / </span>AI<span style="color:#6eeaff">&trade;</span></td></tr>
+        <tr><td style="padding:8px 32px 0">
+          <h1 style="font-size:22px;line-height:1.4;margin:12px 0 8px;color:#f3f4ff">ยืนยันอีเมลของคุณ</h1>
+          <p style="font-size:15px;line-height:1.7;color:#a3a7c3;margin:0 0 24px">ขอบคุณที่สมัครสมาชิกคอร์ส EA / AI กดปุ่มด้านล่างเพื่อยืนยันอีเมล <strong style="color:#f3f4ff">{{ .Email }}</strong> และเข้าสู่ห้องเรียน</p>
+        </td></tr>
+        <tr><td style="padding:0 32px 24px">
+          <a href="{{ .SiteURL }}/learn.html?token_hash={{ .TokenHash }}&amp;type=email" style="display:block;text-align:center;background:#6b4cff;background-image:linear-gradient(110deg,#9328fa,#6b4cff 45%,#21c9ef);color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 20px;border-radius:10px">ยืนยันอีเมล</a>
+        </td></tr>
+        <tr><td style="padding:0 32px 28px;font-size:13px;line-height:1.7;color:#a3a7c3">
+          ถ้าคุณไม่ได้สมัครสมาชิก ไม่ต้องทำอะไร อีเมลนี้จะหมดอายุเอง<br>
+          ถ้าปุ่มกดไม่ได้ ให้คัดลอกลิงก์นี้ไปวางในเบราว์เซอร์:<br>
+          <a href="{{ .SiteURL }}/learn.html?token_hash={{ .TokenHash }}&amp;type=email" style="color:#61e9ff;word-break:break-all">{{ .SiteURL }}/learn.html?token_hash={{ .TokenHash }}&amp;type=email</a>
+        </td></tr>
+      </table>
+      <p style="font-size:12px;color:#6d7090;margin:16px 0 0">EA / AI — เขียน EA ด้วย AI · AURUM TECH</p>
+    </td></tr>
+  </table>
+</body>
+</html>
