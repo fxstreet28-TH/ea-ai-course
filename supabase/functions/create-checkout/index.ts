@@ -66,8 +66,10 @@ Deno.serve(async (req) => {
   const form = new URLSearchParams();
   form.set("mode", "payment");
   form.set("client_reference_id", user.id);
-  // Note: do NOT prefill customer_email — it auto-triggers the Link wallet, which
-  // covers the PromptPay-first layout. User id is still tracked via metadata below.
+  // Prefill the logged-in user's email so they don't retype it. Safe now that only
+  // PromptPay is enabled (card/Link removed), so the Link wallet can't be triggered.
+  // Access is granted by client_reference_id (user id), NOT this email.
+  if (user.email) form.set("customer_email", user.email);
   form.set("metadata[user_id]", user.id);
   if (user.email) form.set("metadata[email]", user.email);
   form.set("allow_promotion_codes", "true");
