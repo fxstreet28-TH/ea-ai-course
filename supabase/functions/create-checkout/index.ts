@@ -6,6 +6,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const COURSE_NAME = "คอร์สเขียน EA ด้วย AI — LongLearnDo Academy";
+const COURSE_IMAGE = "https://longlearndo.com/assets/checkout-logo.jpg";
 const AMOUNT_SATANG = 290000; // 2,900.00 THB
 const CURRENCY = "thb";
 
@@ -76,6 +77,7 @@ Deno.serve(async (req) => {
   form.set("line_items[0][price_data][currency]", CURRENCY);
   form.set("line_items[0][price_data][unit_amount]", String(AMOUNT_SATANG));
   form.set("line_items[0][price_data][product_data][name]", COURSE_NAME);
+  form.set("line_items[0][price_data][product_data][images][0]", COURSE_IMAGE);
   form.set("success_url", `${base}/learn.html?paid=1`);
   form.set("cancel_url", `${base}/#enroll`);
 
