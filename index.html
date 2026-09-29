@@ -149,7 +149,7 @@
 // ใส่ลิงก์ LINE หรือหน้าชำระเงินจริงที่นี่ ก่อนเปิดขาย
 const ENROLL_URL = '';
 const dialog = document.getElementById('enroll-dialog');
-document.querySelectorAll('[data-enroll]').forEach(button=>button.addEventListener('click',()=>{if(ENROLL_URL){window.location.assign(ENROLL_URL);return;}document.getElementById('enroll-content').innerHTML='<p>ยังไม่เปิดรับชำระเงินผ่านหน้านี้</p><div class="dialog-note">ช่องทางสมัครและรายละเอียดการเข้าเรียนจะประกาศเพิ่มเติม กรุณารอข้อมูลจากผู้จัดคอร์สก่อนชำระเงิน</div>';dialog.showModal();}));
+document.querySelectorAll('[data-enroll]').forEach(button=>button.addEventListener('click',async()=>{if(!(window.EAAuth&&window.EAAuth.startCheckout)){document.getElementById('enroll-content').innerHTML='<p>ระบบสมัครยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง</p>';dialog.showModal();return;}var prev=button.textContent;button.disabled=true;button.textContent='กำลังเปิดหน้าชำระเงิน…';try{await window.EAAuth.startCheckout();}catch(e){button.disabled=false;button.textContent=prev;document.getElementById('enroll-content').innerHTML='<p>เปิดหน้าชำระเงินไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</p><div class="dialog-note">ถ้ายังไม่ได้เข้าสู่ระบบ ระบบจะพาไปเข้าสู่ระบบก่อน แล้วกดสมัครอีกครั้ง</div>';dialog.showModal();}}));
 document.querySelectorAll('.dialog-close,.dialog-dismiss').forEach(button=>button.addEventListener('click',()=>dialog.close()));
 dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
 

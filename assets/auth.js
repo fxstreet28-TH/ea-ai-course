@@ -216,7 +216,31 @@
     } catch (e) { /* never break the host page */ }
   }
 
+  // Start Stripe Checkout for the current user. Redirects to login if not signed in.
+  async function startCheckout() {
+    var c = getClient();
+    if (!c) { location.assign('/login.html?next=%2Flearn.html'); return; }
+    var sess = null;
+    try { sess = (await c.auth.getSession()).data.session; } catch (e) {}
+    if (!sess) { location.assign('/login.html?next=%2Flearn.html'); return; }
+    var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/create-checkout', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + sess.access_token,
+        'apikey': cfg.SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ return_origin: location.origin })
+    });
+    var out = {};
+    try { out = await resp.json(); } catch (e) {}
+    if (out.already) { location.assign('/learn.html'); return; }
+    if (out.url) { location.assign(out.url); return; }
+    throw new Error(out.detail || out.error || 'checkout_failed');
+  }
+
   window.EAAuth = {
+    startCheckout: startCheckout,
     isConfigured: isConfigured,
     getClient: getClient,
     safeNext: safeNext,
