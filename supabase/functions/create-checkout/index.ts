@@ -65,8 +65,10 @@ Deno.serve(async (req) => {
   const form = new URLSearchParams();
   form.set("mode", "payment");
   form.set("client_reference_id", user.id);
-  if (user.email) form.set("customer_email", user.email);
+  // Note: do NOT prefill customer_email — it auto-triggers the Link wallet, which
+  // covers the PromptPay-first layout. User id is still tracked via metadata below.
   form.set("metadata[user_id]", user.id);
+  if (user.email) form.set("metadata[email]", user.email);
   form.set("allow_promotion_codes", "true");
   // Payment methods: PromptPay QR first (default), then card. Order controls default selection.
   form.set("payment_method_types[0]", "promptpay");
