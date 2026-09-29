@@ -70,9 +70,8 @@ Deno.serve(async (req) => {
   form.set("metadata[user_id]", user.id);
   if (user.email) form.set("metadata[email]", user.email);
   form.set("allow_promotion_codes", "true");
-  // Payment methods: PromptPay QR first (default), then card. Order controls default selection.
+  // Payment method: PromptPay QR only (Thai customers).
   form.set("payment_method_types[0]", "promptpay");
-  form.set("payment_method_types[1]", "card");
   form.set("line_items[0][quantity]", "1");
   form.set("line_items[0][price_data][currency]", CURRENCY);
   form.set("line_items[0][price_data][unit_amount]", String(AMOUNT_SATANG));
