@@ -68,6 +68,9 @@ Deno.serve(async (req) => {
   if (user.email) form.set("customer_email", user.email);
   form.set("metadata[user_id]", user.id);
   form.set("allow_promotion_codes", "true");
+  // Payment methods: credit/debit card + PromptPay QR (must be enabled in Stripe dashboard).
+  form.set("payment_method_types[0]", "card");
+  form.set("payment_method_types[1]", "promptpay");
   form.set("line_items[0][quantity]", "1");
   form.set("line_items[0][price_data][currency]", CURRENCY);
   form.set("line_items[0][price_data][unit_amount]", String(AMOUNT_SATANG));

@@ -48,7 +48,9 @@ Deno.serve(async (req) => {
   let event: any;
   try { event = JSON.parse(raw); } catch (_) { return new Response("bad_json", { status: 400 }); }
 
-  if (event.type === "checkout.session.completed") {
+  // "completed" fires for card + synchronous methods; "async_payment_succeeded"
+  // fires when a delayed method like PromptPay QR settles.
+  if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const s = event.data?.object || {};
     const paid = s.payment_status === "paid" || s.status === "complete";
     const userId = s.client_reference_id || s.metadata?.user_id || null;
