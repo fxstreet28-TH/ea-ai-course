@@ -239,8 +239,31 @@
     throw new Error(out.detail || out.error || 'checkout_failed');
   }
 
+  // Redeem an 8-char access code for the logged-in user. Returns the result
+  // string: 'ok' | 'used' | 'invalid' | 'revoked' | 'error'.
+  async function redeemCode(code) {
+    var c = getClient();
+    if (!c) return 'error';
+    var sess = null;
+    try { sess = (await c.auth.getSession()).data.session; } catch (e) {}
+    if (!sess) { location.assign('/login.html?next=%2Flearn.html'); return 'error'; }
+    var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/redeem-code', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + sess.access_token,
+        'apikey': cfg.SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ code: code })
+    });
+    var out = {};
+    try { out = await resp.json(); } catch (e) {}
+    return out.result || 'error';
+  }
+
   window.EAAuth = {
     startCheckout: startCheckout,
+    redeemCode: redeemCode,
     isConfigured: isConfigured,
     getClient: getClient,
     safeNext: safeNext,

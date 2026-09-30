@@ -41,10 +41,22 @@
     <section class="panel status-card" id="card-no-access" hidden>
       <span class="eyebrow en">UNLOCK COURSE</span>
       <h2>ปลดล็อกคอร์สของคุณ</h2>
-      <p>ชำระค่าคอร์ส <strong style="color:var(--text)">฿2,900</strong> ด้วยบัตรเครดิต/เดบิตผ่าน Stripe — ระบบเปิดสิทธิ์เรียนให้อัตโนมัติทันทีหลังชำระเงินสำเร็จ<br>บัญชีของคุณ: <strong id="access-email" style="color:var(--text)"></strong></p>
+      <p>ชำระค่าคอร์ส <strong style="color:var(--text)">฿2,900</strong> ผ่าน PromptPay — ระบบจะส่ง <strong style="color:var(--text)">รหัสเปิดสิทธิ์ 8 หลัก</strong> ไปที่อีเมลของคุณทันทีหลังชำระเงินสำเร็จ<br>บัญชีของคุณ: <strong id="access-email" style="color:var(--text)"></strong></p>
       <div class="actions">
-        <button type="button" class="btn" id="btn-pay">ชำระเงิน ฿2,900 · เปิดสิทธิ์เรียน →</button>
+        <button type="button" class="btn" id="btn-pay">ชำระเงิน ฿2,900 · รับรหัสทางอีเมล →</button>
         <button type="button" class="btn outline" id="btn-refresh">ตรวจสอบสถานะอีกครั้ง</button>
+      </div>
+
+      <div style="margin-top:26px;padding-top:22px;border-top:1px solid var(--line)">
+        <div class="eyebrow en" style="margin-bottom:12px">HAVE A CODE?</div>
+        <p style="margin:0 0 12px">มีรหัสเปิดสิทธิ์แล้ว? กรอกที่นี่เพื่อปลดล็อก — รหัส 1 ตัวใช้ได้กับบัญชีนี้บัญชีเดียวถาวร</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input id="code-input" type="text" inputmode="latin" autocomplete="off" spellcheck="false"
+                 placeholder="XXXX-XXXX" maxlength="9"
+                 style="flex:1;min-width:180px;background:#0b0c1c;border:1px solid var(--line);border-radius:10px;padding:13px 14px;color:var(--text);font-size:18px;letter-spacing:3px;font-family:monospace;text-transform:uppercase">
+          <button type="button" class="btn" id="btn-redeem">ยืนยันรหัส</button>
+        </div>
+        <div class="msg" id="redeem-msg" role="alert" aria-live="polite" style="margin-top:12px"></div>
       </div>
     </section>
 
@@ -147,6 +159,40 @@
       catch (e) {
         b.disabled = false; b.textContent = 'ชำระเงิน ฿2,900 · เปิดสิทธิ์เรียน →';
         var m = $('profile-msg'); m.className = 'msg error'; m.textContent = 'เปิดหน้าชำระเงินไม่สำเร็จ ลองใหม่อีกครั้ง';
+      }
+    });
+
+    // Auto-format the code field as XXXX-XXXX while typing.
+    var codeInput = $('code-input');
+    if (codeInput) {
+      codeInput.addEventListener('input', function () {
+        var v = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+        this.value = v.length > 4 ? v.slice(0, 4) + '-' + v.slice(4) : v;
+      });
+    }
+
+    $('btn-redeem').addEventListener('click', async function () {
+      var b = this, m = $('redeem-msg');
+      var code = ($('code-input').value || '').replace(/[^A-Za-z0-9]/g, '');
+      if (code.length !== 8) {
+        m.className = 'msg error'; m.textContent = 'กรุณากรอกรหัสให้ครบ 8 หลัก';
+        return;
+      }
+      b.disabled = true; b.textContent = 'กำลังตรวจสอบ…';
+      m.className = 'msg'; m.textContent = '';
+      var result = 'error';
+      try { result = await A.redeemCode(code); } catch (e) {}
+      if (result === 'ok') {
+        m.className = 'msg success'; m.textContent = 'ปลดล็อกสำเร็จ! กำลังเปิดห้องเรียน…';
+        await loadAccess(user);
+        b.textContent = 'ยืนยันรหัส';
+      } else {
+        b.disabled = false; b.textContent = 'ยืนยันรหัส';
+        m.className = 'msg error';
+        if (result === 'used') m.textContent = 'รหัสนี้ถูกใช้กับบัญชีอื่นไปแล้ว — 1 รหัสใช้ได้เพียงบัญชีเดียว';
+        else if (result === 'invalid') m.textContent = 'ไม่พบรหัสนี้ในระบบ กรุณาตรวจสอบอีกครั้ง';
+        else if (result === 'revoked') m.textContent = 'รหัสนี้ถูกยกเลิกการใช้งานแล้ว';
+        else m.textContent = 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง';
       }
     });
 
