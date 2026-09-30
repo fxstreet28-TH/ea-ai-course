@@ -57,6 +57,20 @@ Deno.serve(async (req) => {
   const { data, error } = await admin.rpc("redeem_access_code", { p_code: code, p_user: user.id });
   if (error) { console.error("redeem rpc error", error); return json({ result: "error" }, 200, origin); }
 
+  // On successful activation, email a confirmation to the user.
+  if (data === "ok" && user.email) {
+    const KEY = Deno.env.get("RESEND_API_KEY");
+    const FROM = Deno.env.get("EMAIL_FROM") || "LongLearnDo Academy <noreply@longlearndo.com>";
+    if (KEY) {
+      const html = `<div style="font-family:Arial,sans-serif;background:#050610;padding:32px;color:#f3f4ff"><div style="max-width:520px;margin:0 auto;background:#101125;border:1px solid #282b49;border-radius:16px;padding:32px"><h1 style="color:#7ee0a8;font-size:22px;margin:0 0 8px">✓ เปิดสิทธิ์เรียนแล้ว — LongLearnDo Academy</h1><p style="color:#a3a7c3;line-height:1.8;margin:0 0 20px">ยืนยันการเปิดสิทธิ์เรียนเรียบร้อย! รหัสของคุณถูกใช้งานและผูกกับบัญชีนี้แล้ว เข้าเรียนคอร์สได้เต็มรูปแบบเลยทันที</p><a href="https://longlearndo.com/learn.html" style="display:block;text-align:center;background:#61e9ff;color:#05202a;text-decoration:none;font-weight:700;padding:14px;border-radius:10px">เข้าห้องเรียน →</a></div></div>`;
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: FROM, to: [user.email], subject: "เปิดสิทธิ์เรียนแล้ว — LongLearnDo Academy", html }),
+      });
+    }
+  }
+
   // data is one of: ok | used | invalid | revoked
   return json({ result: data }, 200, origin);
 });

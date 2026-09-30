@@ -87,6 +87,8 @@
   .badge.on{background:#0f1a12;color:var(--green);border:1px solid #7ee0a844}
   .badge.off{background:#1a1113;color:var(--red);border:1px solid #ff7b8a44}
   .mono{font-family:'Space Grotesk',monospace;letter-spacing:1px;color:var(--gold2)}
+  .paylink{color:var(--green);text-decoration:none;border-bottom:1px dashed #7ee0a855}
+  .paylink:hover{color:#a8f5c8}
   .muted{color:var(--muted)}
 
   .field{margin-bottom:16px}
@@ -169,8 +171,8 @@
       </div>
       <div class="tablewrap">
         <table>
-          <thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>รหัสที่ใช้</th><th>สมัครเมื่อ</th><th></th></tr></thead>
-          <tbody id="cust-body"><tr><td colspan="6" class="empty">กำลังโหลด…</td></tr></tbody>
+          <thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>การชำระเงิน</th><th>รหัสที่ใช้</th><th>สมัครเมื่อ</th><th></th></tr></thead>
+          <tbody id="cust-body"><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -232,12 +234,19 @@
     var q=(filter||'').toLowerCase().trim();
     var rows=customers.filter(function(c){ return !q || (c.email&&c.email.toLowerCase().indexOf(q)>-1) || (c.name&&c.name.toLowerCase().indexOf(q)>-1); });
     var tb=$('cust-body');
-    if(!rows.length){ tb.innerHTML='<tr><td colspan="6" class="empty">ไม่พบข้อมูล</td></tr>'; return; }
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="7" class="empty">ไม่พบข้อมูล</td></tr>'; return; }
     tb.innerHTML=rows.map(function(c){
       var badge=c.has_access?'<span class="badge on">● เปิดสิทธิ์</span>':'<span class="badge off">○ ยังไม่เปิด</span>';
       var code=c.code?'<span class="mono">'+esc(c.code)+'</span>':'<span class="muted">–</span>';
+      var pay='<span class="muted">–</span>';
+      if(c.payment){
+        var amt='฿'+Number(c.payment.amount_thb||0).toLocaleString('th-TH');
+        var pi=c.payment.payment_intent;
+        if(pi){ pay='<a class="mono paylink" href="https://dashboard.stripe.com/payments/'+esc(pi)+'" target="_blank" rel="noopener" title="ตรวจสอบใน Stripe">'+amt+' ↗</a>'; }
+        else { pay='<span class="mono" style="color:var(--green)">'+amt+'</span>'; }
+      }
       var act=c.has_access?'':'<button class="btn sm" data-grant="'+esc(c.email)+'">เปิดสิทธิ์</button>';
-      return '<tr><td>'+esc(c.email)+'</td><td>'+esc(c.name||'–')+'</td><td>'+badge+'</td><td>'+code+'</td><td class="muted">'+fmtDate(c.created_at)+'</td><td>'+act+'</td></tr>';
+      return '<tr><td>'+esc(c.email)+'</td><td>'+esc(c.name||'–')+'</td><td>'+badge+'</td><td>'+pay+'</td><td>'+code+'</td><td class="muted">'+fmtDate(c.created_at)+'</td><td>'+act+'</td></tr>';
     }).join('');
     Array.prototype.forEach.call(tb.querySelectorAll('[data-grant]'),function(b){
       b.addEventListener('click',async function(){ b.disabled=true;b.textContent='...'; var r=await api('grant_access',{email:b.getAttribute('data-grant')}); if(r.body.result==='ok'){ await loadCustomers(); } else { b.disabled=false;b.textContent='เปิดสิทธิ์'; } });

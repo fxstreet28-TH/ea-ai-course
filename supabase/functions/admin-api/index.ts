@@ -45,6 +45,18 @@ async function emailCode(to: string, code: string) {
   });
 }
 
+async function emailActivated(to: string) {
+  const KEY = Deno.env.get("RESEND_API_KEY");
+  const FROM = Deno.env.get("EMAIL_FROM") || "LongLearnDo Academy <noreply@longlearndo.com>";
+  if (!KEY) return;
+  const html = `<div style="font-family:Arial,sans-serif;background:#050610;padding:32px;color:#f3f4ff"><div style="max-width:520px;margin:0 auto;background:#101125;border:1px solid #282b49;border-radius:16px;padding:32px"><h1 style="color:#7ee0a8;font-size:22px;margin:0 0 8px">✓ เปิดสิทธิ์เรียนแล้ว — LongLearnDo Academy</h1><p style="color:#a3a7c3;line-height:1.8;margin:0 0 20px">ยืนยันการเปิดสิทธิ์เรียนเรียบร้อย! บัญชีของคุณสามารถเข้าเรียนคอร์สได้เต็มรูปแบบแล้ว เข้าห้องเรียนได้เลยทันที</p><a href="https://longlearndo.com/learn.html" style="display:block;text-align:center;background:#61e9ff;color:#05202a;text-decoration:none;font-weight:700;padding:14px;border-radius:10px;margin:0 0 8px">เข้าห้องเรียน →</a><p style="color:#5a5e7e;font-size:12px;margin:14px 0 0">หากมีปัญหาการเข้าเรียน ตอบกลับอีเมลนี้ได้เลย</p></div></div>`;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: FROM, to: [to], subject: "เปิดสิทธิ์เรียนแล้ว — LongLearnDo Academy", html }),
+  });
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin") || "";
   if (req.method === "OPTIONS") return new Response(null, { headers: cors(origin) });
@@ -90,13 +102,34 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false }).limit(500);
     const { data: codes } = await admin.from("access_codes")
       .select("code,email,redeemed_by,status,created_at");
+    const { data: orders } = await admin.from("course_orders")
+      .select("user_id,email,amount_total,currency,status,stripe_payment_intent,stripe_session_id,created_at")
+      .eq("status", "paid");
     const byUser: Record<string, any> = {};
     for (const c of codes || []) { if (c.redeemed_by) byUser[c.redeemed_by] = c; }
-    const rows = (profs || []).map((p: any) => ({
-      email: p.email, name: p.full_name, has_access: p.has_access,
-      created_at: p.created_at, access_granted_at: p.access_granted_at,
-      code: byUser[p.id] ? pretty(byUser[p.id].code) : null,
-    }));
+    // Map latest paid order by user_id and by lowercased email.
+    const payByUser: Record<string, any> = {};
+    const payByEmail: Record<string, any> = {};
+    for (const o of orders || []) {
+      if (o.user_id && !payByUser[o.user_id]) payByUser[o.user_id] = o;
+      const em = (o.email || "").toLowerCase();
+      if (em && !payByEmail[em]) payByEmail[em] = o;
+    }
+    const rows = (profs || []).map((p: any) => {
+      const pay = payByUser[p.id] || payByEmail[(p.email || "").toLowerCase()] || null;
+      return {
+        email: p.email, name: p.full_name, has_access: p.has_access,
+        created_at: p.created_at, access_granted_at: p.access_granted_at,
+        code: byUser[p.id] ? pretty(byUser[p.id].code) : null,
+        payment: pay ? {
+          amount_thb: (pay.amount_total || 0) / 100,
+          currency: pay.currency || "thb",
+          payment_intent: pay.stripe_payment_intent || null,
+          session_id: pay.stripe_session_id || null,
+          paid_at: pay.created_at,
+        } : null,
+      };
+    });
     return json({ customers: rows }, 200, origin);
   }
 
@@ -107,6 +140,7 @@ Deno.serve(async (req) => {
     if (!prof || prof.length === 0) return json({ result: "no_user" }, 200, origin);
     await admin.from("profiles").update({ has_access: true, access_granted_at: new Date().toISOString() })
       .eq("id", prof[0].id);
+    if (prof[0].email) await emailActivated(prof[0].email);
     return json({ result: "ok", email: prof[0].email }, 200, origin);
   }
 
