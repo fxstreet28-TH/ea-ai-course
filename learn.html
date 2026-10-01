@@ -158,7 +158,8 @@
     var access = await loadAccess(user);
     $('app-loading').hidden = true;
     $('app').hidden = false;
-    if (access) loadLessons();
+    // NOTE: lessons are initialised at the END of main(), after the lesson
+    // functions and DEFAULT_LESSONS are defined. Do not call loadLessons() here.
 
     // Returning from Stripe Checkout — the webhook opens access a moment later; poll briefly.
     if (new URLSearchParams(location.search).get('paid') === '1') {
@@ -166,7 +167,7 @@
       pm.className = 'msg'; pm.textContent = 'กำลังยืนยันการชำระเงิน… ระบบกำลังเปิดสิทธิ์เรียนให้';
       for (var i = 0; i < 8; i++) {
         var ok = await loadAccess(user);
-        if (ok) { pm.className = 'msg success'; pm.textContent = 'ชำระเงินสำเร็จ — เปิดสิทธิ์เรียนแล้ว 🎉'; loadLessons(); break; }
+        if (ok) { pm.className = 'msg success'; pm.textContent = 'ชำระเงินสำเร็จ — เปิดสิทธิ์เรียนแล้ว 🎉'; access = true; break; }
         await new Promise(function (r) { setTimeout(r, 1500); });
       }
       try { history.replaceState(null, '', '/learn.html'); } catch (e) {}
@@ -333,7 +334,14 @@
         }
       } catch (e) { /* keep bundled lessons */ }
     }
-    renderLessons();
+
+    // Initialise lessons now that everything above is defined.
+    if (access) {
+      loadLessons();
+    } else {
+      lessonsLoaded = true;
+      renderLessons();
+    }
 
     A.onAuthStateChange(function (event) { if (event === 'SIGNED_OUT' && !leaving) location.replace('/login.html?next=%2Flearn.html'); });
   }
