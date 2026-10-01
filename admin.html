@@ -133,6 +133,7 @@
     <nav class="nav">
       <button data-view="dashboard" class="active"><span class="ico">▦</span> Dashboard</button>
       <button data-view="customers"><span class="ico">◍</span> Customers</button>
+      <button data-view="lessons"><span class="ico">▶</span> บทเรียน</button>
       <button data-view="addclass"><span class="ico">＋</span> Add Class</button>
     </nav>
     <div class="who">
@@ -174,6 +175,31 @@
           <thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>การชำระเงิน</th><th>รหัสที่ใช้</th><th>สมัครเมื่อ</th><th></th></tr></thead>
           <tbody id="cust-body"><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- LESSONS (CMS) -->
+    <section class="view" id="view-lessons">
+      <div class="top"><div><div class="eyebrow">COURSE CONTENT</div><h1>จัดการบทเรียน</h1><p class="sub">อัพโหลดคลิปบทเรียนเองได้เลย — บทเรียนจะขึ้นในหน้าเรียนของลูกค้าทันที</p></div></div>
+
+      <div class="panel-box">
+        <h3>+ เพิ่มบทเรียนใหม่</h3>
+        <p class="desc">ตั้งชื่อบท เลือกไฟล์วิดีโอ (.mp4) แล้วกดอัพโหลด — รองรับไฟล์สูงสุด 500MB ต่อคลิป</p>
+        <div class="field"><label>ชื่อบทเรียน (ภาษาไทย) *</label><input id="les-title" type="text" placeholder="เช่น รู้จัก EA และหลักการทำงาน" autocomplete="off"></div>
+        <div class="field"><label>ชื่อรอง / ภาษาอังกฤษ (ไม่บังคับ)</label><input id="les-title-en" type="text" placeholder="เช่น What is an EA" autocomplete="off"></div>
+        <div class="field"><label>ไฟล์วิดีโอ *</label><input id="les-file" type="file" accept="video/mp4,video/quicktime,video/webm"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn" id="btn-upload">อัพโหลดบทเรียน</button>
+          <div id="up-progress" style="flex:1;min-width:160px;height:8px;background:#ffffff14;border-radius:99px;overflow:hidden;display:none">
+            <div id="up-bar" style="height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .2s"></div>
+          </div>
+        </div>
+        <div class="msg" id="les-msg"></div>
+      </div>
+
+      <div class="panel-box">
+        <h3>บทเรียนทั้งหมด <button class="btn ghost sm" id="btn-les-reload" style="float:right">↻ รีเฟรช</button></h3>
+        <div id="les-list" style="display:grid;gap:10px;margin-top:8px"><div class="empty">กำลังโหลด…</div></div>
       </div>
     </section>
 
@@ -272,6 +298,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('.nav button'),function(b){ b.classList.toggle('active',b.getAttribute('data-view')===v); });
     Array.prototype.forEach.call(document.querySelectorAll('.view'),function(s){ s.classList.toggle('active',s.id==='view-'+v); });
     if(v==='customers'&&!customers.length) loadCustomers();
+    if(v==='lessons'&&!lessonsLoadedOnce){ lessonsLoadedOnce=true; loadLessonList(); }
   }
 
   function gmsg(kind,text){ var m=$('grant-msg'); m.className='msg show '+kind; m.textContent=text; }
@@ -299,6 +326,86 @@
       else if(r.body.result==='no_user') gmsg('err','ไม่พบบัญชีนี้');
       else gmsg('err','เกิดข้อผิดพลาด ลองใหม่');
     });
+  }
+
+  // ---------------- Lessons CMS ----------------
+  var lessonsLoadedOnce = false;
+  function lmsg(kind,text){ var m=$('les-msg'); m.className='msg show '+kind; m.textContent=text; }
+  function setBar(p){ $('up-bar').style.width=p+'%'; }
+
+  function renderLessonList(rows){
+    var el=$('les-list');
+    if(!rows.length){ el.innerHTML='<div class="empty">ยังไม่มีบทเรียน — เพิ่มบทแรกด้านบนได้เลย</div>'; return; }
+    el.innerHTML=rows.map(function(l){
+      var num=(l.position<10?'0'+l.position:l.position);
+      var pub=l.is_published?'<span class="badge on">● แสดง</span>':'<span class="badge off">○ ซ่อน</span>';
+      var prev=l.url?'<a class="btn ghost sm" href="'+esc(l.url)+'" target="_blank" rel="noopener">▶ ดู</a>':'<span class="muted">—</span>';
+      return '<div style="display:flex;align-items:center;gap:12px;background:#ffffff08;border:1px solid var(--line);border-radius:12px;padding:12px 14px;flex-wrap:wrap">'+
+        '<span class="mono" style="color:var(--gold);font-weight:700;min-width:28px">'+num+'</span>'+
+        '<span style="flex:1;min-width:140px"><b>'+esc(l.title)+'</b>'+(l.title_en?'<br><span class="muted" style="font-size:12px">'+esc(l.title_en)+'</span>':'')+'</span>'+
+        pub+prev+
+        '<button class="btn danger sm" data-del="'+esc(l.id)+'">ลบ</button>'+
+      '</div>';
+    }).join('');
+    Array.prototype.forEach.call(el.querySelectorAll('[data-del]'),function(b){
+      b.addEventListener('click',async function(){
+        if(!confirm('ลบบทเรียนนี้? การลบไม่สามารถกู้คืนได้')) return;
+        b.disabled=true; b.textContent='...';
+        var r=await api('delete_lesson',{id:b.getAttribute('data-del')});
+        if(r.body.result==='ok') loadLessonList(); else { b.disabled=false; b.textContent='ลบ'; }
+      });
+    });
+  }
+  async function loadLessonList(){
+    $('les-list').innerHTML='<div class="empty">กำลังโหลด…</div>';
+    var r=await api('list_lessons');
+    renderLessonList((r.body&&r.body.lessons)||[]);
+  }
+
+  // Upload the file straight to Supabase Storage via a signed upload URL (with progress).
+  function uploadWithProgress(path, token, file){
+    return new Promise(function(resolve,reject){
+      var url=cfg.SUPABASE_URL+'/storage/v1/object/upload/sign/lessons/'+path+'?token='+encodeURIComponent(token);
+      var xhr=new XMLHttpRequest();
+      xhr.open('PUT',url,true);
+      xhr.setRequestHeader('Content-Type',file.type||'video/mp4');
+      xhr.setRequestHeader('x-upsert','true');
+      xhr.upload.onprogress=function(e){ if(e.lengthComputable) setBar(Math.round(e.loaded/e.total*100)); };
+      xhr.onload=function(){ (xhr.status>=200&&xhr.status<300)?resolve():reject(new Error('HTTP '+xhr.status)); };
+      xhr.onerror=function(){ reject(new Error('network')); };
+      xhr.send(file);
+    });
+  }
+  async function uploadLesson(){
+    var title=($('les-title').value||'').trim();
+    var titleEn=($('les-title-en').value||'').trim();
+    var file=$('les-file').files[0];
+    if(!title){ lmsg('err','กรุณากรอกชื่อบทเรียน'); return; }
+    if(!file){ lmsg('err','กรุณาเลือกไฟล์วิดีโอ'); return; }
+    var btn=$('btn-upload'); btn.disabled=true; var t=btn.textContent;
+    $('up-progress').style.display='block'; setBar(0); lmsg('','');
+    try{
+      btn.textContent='กำลังเตรียม…';
+      var r=await api('create_lesson_upload',{filename:file.name});
+      if(r.body.result!=='ok') throw new Error('ขอ URL อัพโหลดไม่สำเร็จ');
+      btn.textContent='กำลังอัพโหลด…';
+      await uploadWithProgress(r.body.path, r.body.token, file);
+      btn.textContent='กำลังบันทึก…';
+      var s=await api('save_lesson',{title:title,title_en:titleEn,storage_path:r.body.path});
+      if(s.body.result!=='ok') throw new Error('บันทึกบทเรียนไม่สำเร็จ');
+      lmsg('ok','✓ เพิ่มบทเรียน "'+title+'" เรียบร้อยแล้ว — ขึ้นในหน้าเรียนแล้ว');
+      $('les-title').value=''; $('les-title-en').value=''; $('les-file').value='';
+      await loadLessonList();
+    }catch(e){
+      lmsg('err','อัพโหลดไม่สำเร็จ: '+(e.message||e));
+    }finally{
+      btn.disabled=false; btn.textContent=t;
+      setBar(100); setTimeout(function(){ $('up-progress').style.display='none'; setBar(0); },900);
+    }
+  }
+  function bindLessons(){
+    $('btn-upload').addEventListener('click',uploadLesson);
+    $('btn-les-reload').addEventListener('click',loadLessonList);
   }
 
   async function main(){
@@ -332,6 +439,7 @@
     $('btn-reload').addEventListener('click',loadCustomers);
     $('btn-logout').addEventListener('click',async function(){ await A.signOut(); location.replace('/'); });
     bindAddClass();
+    bindLessons();
   }
   main();
 })();

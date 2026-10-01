@@ -78,12 +78,11 @@
       <p style="margin:0 0 20px">สิทธิ์เรียนของคุณเปิดแล้ว — เริ่มจากบทแรกได้เลย</p>
 
       <div id="lesson-stage" style="max-width:860px">
-        <div class="eyebrow en" style="margin-bottom:10px">บทที่ 1 · INTRODUCE MYSELF</div>
-        <h3 id="lesson-title" style="font-size:clamp(20px,2.4vw,26px);margin:0 0 14px">แนะนำตัว &amp; ภาพรวมคอร์ส</h3>
+        <div class="eyebrow en" style="margin-bottom:10px">บทเรียน · LESSONS</div>
+        <h3 id="lesson-title" style="font-size:clamp(20px,2.4vw,26px);margin:0 0 14px">กำลังโหลดบทเรียน…</h3>
         <div style="border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 24px 70px #00000075;background:#000">
-          <video id="lesson-video" controls playsinline preload="metadata"
-                 poster="/assets/lessons/lesson-01-intro-poster.jpg" style="width:100%;height:auto;display:block">
-            <source src="/assets/lessons/lesson-01-intro.mp4" type="video/mp4">
+          <video id="lesson-video" controls playsinline preload="metadata" style="width:100%;height:auto;display:block">
+            <source src="" type="video/mp4">
             เบราว์เซอร์ของคุณไม่รองรับวิดีโอ
           </video>
         </div>
@@ -106,6 +105,7 @@
 (function () {
   'use strict';
   var A = window.EAAuth;
+  var cfg = window.EA_CONFIG || {};
   var $ = function (id) { return document.getElementById(id); };
 
   if (!A) { location.replace('/login.html?next=%2Flearn.html'); return; }
@@ -155,9 +155,10 @@
     var user = session.user;
     try { user = await A.getUser(); } catch (e) { /* fall back to cached session user */ }
     renderUser(user);
-    await loadAccess(user);
+    var access = await loadAccess(user);
     $('app-loading').hidden = true;
     $('app').hidden = false;
+    if (access) loadLessons();
 
     // Returning from Stripe Checkout — the webhook opens access a moment later; poll briefly.
     if (new URLSearchParams(location.search).get('paid') === '1') {
@@ -165,7 +166,7 @@
       pm.className = 'msg'; pm.textContent = 'กำลังยืนยันการชำระเงิน… ระบบกำลังเปิดสิทธิ์เรียนให้';
       for (var i = 0; i < 8; i++) {
         var ok = await loadAccess(user);
-        if (ok) { pm.className = 'msg success'; pm.textContent = 'ชำระเงินสำเร็จ — เปิดสิทธิ์เรียนแล้ว 🎉'; break; }
+        if (ok) { pm.className = 'msg success'; pm.textContent = 'ชำระเงินสำเร็จ — เปิดสิทธิ์เรียนแล้ว 🎉'; loadLessons(); break; }
         await new Promise(function (r) { setTimeout(r, 1500); });
       }
       try { history.replaceState(null, '', '/learn.html'); } catch (e) {}
@@ -246,31 +247,34 @@
       }
     });
 
-    // Course lessons. Add more entries here as videos are produced (src=null = coming soon).
-    var LESSONS = [
-      { no: 1, title: 'แนะนำตัว & ภาพรวมคอร์ส', en: 'Introduce myself',
-        src: '/assets/lessons/lesson-01-intro.mp4', poster: '/assets/lessons/lesson-01-intro-poster.jpg' },
-      { no: 2, title: 'รู้จัก EA และหลักการทำงาน', en: 'What is an EA', src: null },
-      { no: 3, title: 'เขียน Prompt สั่ง AI สร้างโค้ด', en: 'Prompting the AI', src: null },
-      { no: 4, title: 'ออกแบบกลยุทธ์และเงื่อนไข', en: 'Strategy design', src: null },
-      { no: 5, title: 'Backtest และอ่านผล', en: 'Backtesting', src: null },
-      { no: 6, title: 'ปรับปรุงระบบและทดลองบน Demo', en: 'Refine & demo', src: null }
-    ];
+    // Course lessons — loaded live from the CRM (Supabase). CEO Por adds/uploads
+    // lessons in admin.html; they appear here automatically. No hardcoding.
+    var LESSONS = [];
+    var lessonsLoaded = false;
     var lv = $('lesson-video'), lt = $('lesson-title');
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
     function playLesson(ls) {
       if (!ls.src) return;
       lv.querySelector('source').setAttribute('src', ls.src);
       lv.setAttribute('poster', ls.poster || '');
       lv.load();
       lt.textContent = ls.title;
-      document.querySelector('#lesson-stage .eyebrow').textContent = 'บทที่ ' + ls.no + ' · ' + (ls.en || '').toUpperCase();
+      document.querySelector('#lesson-stage .eyebrow').textContent = 'บทที่ ' + ls.no + ' · ' + (ls.en || 'LESSON').toUpperCase();
       try { lv.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
       Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function (el) {
         el.classList.toggle('lesson-active', Number(el.getAttribute('data-lesson')) === ls.no);
       });
     }
     function renderLessons() {
-      $('lesson-list').innerHTML = LESSONS.map(function (ls) {
+      var list = $('lesson-list');
+      if (!LESSONS.length) {
+        list.innerHTML = lessonsLoaded
+          ? '<div style="padding:20px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);text-align:center">เนื้อหาบทเรียนกำลังจะมาเร็วๆ นี้ ✨</div>'
+          : '<div style="padding:20px;color:var(--muted);text-align:center">กำลังโหลดบทเรียน…</div>';
+        return;
+      }
+      list.innerHTML = LESSONS.map(function (ls) {
         var locked = !ls.src;
         var right = locked
           ? '<span style="font-size:12px;color:var(--muted)">เร็วๆ นี้</span>'
@@ -279,7 +283,7 @@
           (locked ? ' disabled' : '') +
           ' style="display:flex;align-items:center;gap:14px;text-align:left;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--text);font-family:inherit;cursor:' + (locked ? 'default' : 'pointer') + ';opacity:' + (locked ? '.55' : '1') + '">' +
           '<span style="font-family:monospace;font-weight:700;color:var(--gold);min-width:26px">' + (ls.no < 10 ? '0' + ls.no : ls.no) + '</span>' +
-          '<span style="flex:1"><b>' + ls.title + '</b><br><span style="font-size:12px;color:var(--muted)">' + ls.en + '</span></span>' +
+          '<span style="flex:1"><b>' + esc(ls.title) + '</b>' + (ls.en ? '<br><span style="font-size:12px;color:var(--muted)">' + esc(ls.en) + '</span>' : '') + '</span>' +
           right + '</button>';
       }).join('');
       Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function (el) {
@@ -288,6 +292,39 @@
           if (ls && ls.src) playLesson(ls);
         });
       });
+    }
+
+    async function loadLessons() {
+      renderLessons(); // "loading…" state
+      try {
+        var sess = (await A.getClient().auth.getSession()).data.session;
+        var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/lessons', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + sess.access_token, 'apikey': cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        var data = await resp.json().catch(function () { return {}; });
+        var rows = (data && data.lessons) || [];
+        LESSONS = rows.map(function (r, i) {
+          return { no: i + 1, title: r.title, en: r.title_en || '', src: r.url || null, poster: r.poster_url || '' };
+        });
+      } catch (e) { LESSONS = []; }
+      // Fallback: if the CMS has no lessons yet (or is unreachable), keep the
+      // bundled intro so the classroom is never empty for a paid member.
+      if (!LESSONS.length) {
+        LESSONS = [{ no: 1, title: 'แนะนำตัว & ภาพรวมคอร์ส', en: 'Introduce myself',
+          src: '/assets/lessons/lesson-01-intro.mp4', poster: '/assets/lessons/lesson-01-intro-poster.jpg' }];
+      }
+      lessonsLoaded = true;
+      renderLessons();
+      var first = LESSONS.filter(function (x) { return x.src; })[0];
+      if (first) {
+        playLesson(first);
+      } else {
+        // No playable video yet — show a friendly placeholder on the stage.
+        document.querySelector('#lesson-stage .eyebrow').textContent = 'บทเรียน · LESSONS';
+        lt.textContent = 'เนื้อหาบทเรียนกำลังจะมาเร็วๆ นี้';
+      }
     }
     renderLessons();
 

@@ -170,5 +170,89 @@ Deno.serve(async (req) => {
     return json({ result: "ok", code: pretty(code) }, 200, origin);
   }
 
+  // ---------------- Lessons CMS ----------------
+  // list_lessons: all lessons (admin), each with a short-lived playback URL for preview.
+  if (action === "list_lessons") {
+    const { data } = await admin.from("lessons")
+      .select("*").order("position", { ascending: true }).order("created_at", { ascending: true });
+    const out: any[] = [];
+    for (const l of data || []) {
+      let url = l.external_url || null;
+      if (!url && l.storage_path) {
+        const s = await admin.storage.from("lessons").createSignedUrl(l.storage_path, 60 * 60 * 6);
+        url = s.data?.signedUrl || null;
+      }
+      out.push({ ...l, url });
+    }
+    return json({ lessons: out }, 200, origin);
+  }
+
+  // create_lesson_upload: mint a signed upload URL the browser uploads the video to directly.
+  if (action === "create_lesson_upload") {
+    const name = String(body.filename || "video.mp4");
+    const dot = name.lastIndexOf(".");
+    const ext = ((dot > -1 ? name.slice(dot + 1) : "mp4").toLowerCase().replace(/[^a-z0-9]/g, "")) || "mp4";
+    const path = `videos/${crypto.randomUUID()}.${ext}`;
+    const { data, error } = await admin.storage.from("lessons").createSignedUploadUrl(path);
+    if (error || !data) return json({ result: "error", detail: error?.message || "upload_url_failed" }, 200, origin);
+    return json({ result: "ok", path, token: data.token, signedUrl: data.signedUrl }, 200, origin);
+  }
+
+  // save_lesson: insert the DB row after the upload finished.
+  if (action === "save_lesson") {
+    const title = String(body.title || "").trim();
+    if (!title) return json({ result: "no_title" }, 200, origin);
+    let position = Number(body.position);
+    if (!Number.isFinite(position)) {
+      const { data: mx } = await admin.from("lessons").select("position").order("position", { ascending: false }).limit(1);
+      position = ((mx && mx.length ? (mx[0].position || 0) : 0)) + 1;
+    }
+    const row: any = {
+      title, position,
+      title_en: body.title_en ? String(body.title_en) : null,
+      description: body.description ? String(body.description) : null,
+      is_published: body.is_published === false ? false : true,
+    };
+    if (body.storage_path) row.storage_path = String(body.storage_path);
+    if (body.external_url) row.external_url = String(body.external_url);
+    if (body.poster_url) row.poster_url = String(body.poster_url);
+    const { data, error } = await admin.from("lessons").insert(row).select("*").single();
+    if (error) return json({ result: "error", detail: error.message }, 200, origin);
+    return json({ result: "ok", lesson: data }, 200, origin);
+  }
+
+  if (action === "update_lesson") {
+    const id = String(body.id || "");
+    if (!id) return json({ result: "no_id" }, 200, origin);
+    const patch: any = {};
+    if (body.title != null) patch.title = String(body.title);
+    if (body.title_en != null) patch.title_en = String(body.title_en) || null;
+    if (body.description != null) patch.description = String(body.description) || null;
+    if (body.position != null) patch.position = Number(body.position);
+    if (body.is_published != null) patch.is_published = !!body.is_published;
+    const { error } = await admin.from("lessons").update(patch).eq("id", id);
+    if (error) return json({ result: "error", detail: error.message }, 200, origin);
+    return json({ result: "ok" }, 200, origin);
+  }
+
+  if (action === "delete_lesson") {
+    const id = String(body.id || "");
+    if (!id) return json({ result: "no_id" }, 200, origin);
+    const { data: row } = await admin.from("lessons").select("storage_path").eq("id", id).single();
+    if (row?.storage_path) { await admin.storage.from("lessons").remove([row.storage_path]); }
+    const { error } = await admin.from("lessons").delete().eq("id", id);
+    if (error) return json({ result: "error", detail: error.message }, 200, origin);
+    return json({ result: "ok" }, 200, origin);
+  }
+
+  // reorder_lessons: ids in the desired order → positions 1..n.
+  if (action === "reorder_lessons") {
+    const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+    for (let i = 0; i < ids.length; i++) {
+      await admin.from("lessons").update({ position: i + 1 }).eq("id", ids[i]);
+    }
+    return json({ result: "ok" }, 200, origin);
+  }
+
   return json({ error: "unknown_action" }, 400, origin);
 });
