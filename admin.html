@@ -362,17 +362,20 @@
     renderLessonList((r.body&&r.body.lessons)||[]);
   }
 
-  // Upload the file straight to Supabase Storage via a signed upload URL (with progress).
-  function uploadWithProgress(path, token, file){
+  // Upload via XHR to the signed URL (gives a progress bar). Returns a rejected
+  // promise on any failure so the caller can fall back to the supabase-js client.
+  function uploadXHR(signedUrl, path, token, file){
     return new Promise(function(resolve,reject){
-      var url=cfg.SUPABASE_URL+'/storage/v1/object/upload/sign/lessons/'+path+'?token='+encodeURIComponent(token);
+      var url = (signedUrl && /^https?:/.test(signedUrl))
+        ? signedUrl
+        : cfg.SUPABASE_URL + '/storage/v1' + (signedUrl && signedUrl.charAt(0)==='/' ? signedUrl : '/object/upload/sign/lessons/'+path+'?token='+encodeURIComponent(token));
       var xhr=new XMLHttpRequest();
       xhr.open('PUT',url,true);
       xhr.setRequestHeader('Content-Type',file.type||'video/mp4');
       xhr.setRequestHeader('x-upsert','true');
       xhr.upload.onprogress=function(e){ if(e.lengthComputable) setBar(Math.round(e.loaded/e.total*100)); };
-      xhr.onload=function(){ (xhr.status>=200&&xhr.status<300)?resolve():reject(new Error('HTTP '+xhr.status)); };
-      xhr.onerror=function(){ reject(new Error('network')); };
+      xhr.onload=function(){ (xhr.status>=200&&xhr.status<300)?resolve():reject(new Error('HTTP '+xhr.status+' '+String(xhr.responseText||'').slice(0,140))); };
+      xhr.onerror=function(){ reject(new Error('network/CORS')); };
       xhr.send(file);
     });
   }
@@ -387,12 +390,21 @@
     try{
       btn.textContent='กำลังเตรียม…';
       var r=await api('create_lesson_upload',{filename:file.name});
-      if(r.body.result!=='ok') throw new Error('ขอ URL อัพโหลดไม่สำเร็จ');
+      if(r.body.result!=='ok') throw new Error('ขอ URL อัพโหลดไม่สำเร็จ ('+(r.body.detail||('HTTP '+r.status))+')');
       btn.textContent='กำลังอัพโหลด…';
-      await uploadWithProgress(r.body.path, r.body.token, file);
+      // Try XHR (progress bar) first; if it fails (e.g. CORS), use the official client.
+      try {
+        await uploadXHR(r.body.signedUrl, r.body.path, r.body.token, file);
+      } catch (xhrErr) {
+        btn.textContent='กำลังอัพโหลด (วิธีสำรอง)…'; setBar(0);
+        var up = await A.getClient().storage.from('lessons')
+          .uploadToSignedUrl(r.body.path, r.body.token, file, { contentType: file.type||'video/mp4', upsert:true });
+        if (up.error) throw new Error('อัพโหลดไฟล์ไม่สำเร็จ: '+up.error.message+' (XHR: '+(xhrErr.message||xhrErr)+')');
+        setBar(100);
+      }
       btn.textContent='กำลังบันทึก…';
       var s=await api('save_lesson',{title:title,title_en:titleEn,storage_path:r.body.path});
-      if(s.body.result!=='ok') throw new Error('บันทึกบทเรียนไม่สำเร็จ');
+      if(s.body.result!=='ok') throw new Error('บันทึกบทเรียนไม่สำเร็จ ('+(s.body.detail||s.body.result||'')+')');
       lmsg('ok','✓ เพิ่มบทเรียน "'+title+'" เรียบร้อยแล้ว — ขึ้นในหน้าเรียนแล้ว');
       $('les-title').value=''; $('les-title-en').value=''; $('les-file').value='';
       await loadLessonList();
@@ -400,7 +412,7 @@
       lmsg('err','อัพโหลดไม่สำเร็จ: '+(e.message||e));
     }finally{
       btn.disabled=false; btn.textContent=t;
-      setBar(100); setTimeout(function(){ $('up-progress').style.display='none'; setBar(0); },900);
+      setTimeout(function(){ $('up-progress').style.display='none'; setBar(0); },900);
     }
   }
   function bindLessons(){

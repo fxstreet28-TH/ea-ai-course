@@ -298,11 +298,14 @@
       renderLessons(); // "loading…" state
       try {
         var sess = (await A.getClient().auth.getSession()).data.session;
+        var ctrl = new AbortController();
+        var to = setTimeout(function () { ctrl.abort(); }, 15000);
         var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/lessons', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + sess.access_token, 'apikey': cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-          body: '{}'
+          headers: { 'Authorization': 'Bearer ' + (sess ? sess.access_token : ''), 'apikey': cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: '{}', signal: ctrl.signal
         });
+        clearTimeout(to);
         var data = await resp.json().catch(function () { return {}; });
         var rows = (data && data.lessons) || [];
         LESSONS = rows.map(function (r, i) {
