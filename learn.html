@@ -294,8 +294,26 @@
       });
     }
 
+    // Bundled lessons — always available, shown instantly (never a blank/stuck player).
+    var DEFAULT_LESSONS = [
+      { no: 1, title: 'แนะนำตัว & ภาพรวมคอร์ส', en: 'Introduce myself',
+        src: '/assets/lessons/lesson-01-intro.mp4', poster: '/assets/lessons/lesson-01-intro-poster.jpg' },
+      { no: 2, title: 'คุณค่าของการเขียน EA ได้ด้วยตัวเอง', en: 'Why write your own EA',
+        src: '/assets/lessons/lesson-02-value.mp4', poster: '/assets/lessons/lesson-02-value-poster.jpg' }
+    ];
+
+    function applyLessons(list) {
+      LESSONS = list;
+      lessonsLoaded = true;
+      renderLessons();
+      var first = LESSONS.filter(function (x) { return x.src; })[0];
+      if (first) playLesson(first);
+    }
+
     async function loadLessons() {
-      renderLessons(); // "loading…" state
+      // Show bundled lessons immediately — classroom is never empty or stuck.
+      applyLessons(DEFAULT_LESSONS);
+      // Then try to enhance with CMS lessons (uploaded from the admin console).
       try {
         var sess = (await A.getClient().auth.getSession()).data.session;
         var ctrl = new AbortController();
@@ -308,26 +326,12 @@
         clearTimeout(to);
         var data = await resp.json().catch(function () { return {}; });
         var rows = (data && data.lessons) || [];
-        LESSONS = rows.map(function (r, i) {
-          return { no: i + 1, title: r.title, en: r.title_en || '', src: r.url || null, poster: r.poster_url || '' };
-        });
-      } catch (e) { LESSONS = []; }
-      // Fallback: if the CMS has no lessons yet (or is unreachable), keep the
-      // bundled intro so the classroom is never empty for a paid member.
-      if (!LESSONS.length) {
-        LESSONS = [{ no: 1, title: 'แนะนำตัว & ภาพรวมคอร์ส', en: 'Introduce myself',
-          src: '/assets/lessons/lesson-01-intro.mp4', poster: '/assets/lessons/lesson-01-intro-poster.jpg' }];
-      }
-      lessonsLoaded = true;
-      renderLessons();
-      var first = LESSONS.filter(function (x) { return x.src; })[0];
-      if (first) {
-        playLesson(first);
-      } else {
-        // No playable video yet — show a friendly placeholder on the stage.
-        document.querySelector('#lesson-stage .eyebrow').textContent = 'บทเรียน · LESSONS';
-        lt.textContent = 'เนื้อหาบทเรียนกำลังจะมาเร็วๆ นี้';
-      }
+        if (rows.length) {
+          applyLessons(rows.map(function (r, i) {
+            return { no: i + 1, title: r.title, en: r.title_en || '', src: r.url || null, poster: r.poster_url || '' };
+          }));
+        }
+      } catch (e) { /* keep bundled lessons */ }
     }
     renderLessons();
 
