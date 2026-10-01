@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex">
 <title>ห้องเรียน — EA / AI</title>
 <link rel="stylesheet" href="/assets/site.css">
+<style>[data-lesson].lesson-active{border-color:var(--gold)!important;background:linear-gradient(90deg,#61e9ff14,transparent)!important;opacity:1!important}</style>
 </head>
 <body>
 <div id="app-loading" class="loading" aria-live="polite">
@@ -72,11 +73,25 @@
     </section>
 
     <section class="panel status-card" id="card-access" hidden>
-      <span class="eyebrow en">ACCESS GRANTED</span>
-      <h2>ยินดีต้อนรับ · เริ่มเรียนบทที่ 1</h2>
-      <p>สิทธิ์เรียนของคุณเปิดแล้ว เริ่มจากบทแรกได้เลย</p>
-      <div class="actions">
-        <a class="btn" href="#" id="btn-start">เริ่มเรียนบทที่ 1 →</a>
+      <span class="eyebrow en">ACCESS GRANTED · เริ่มเรียนได้เลย</span>
+      <h2 style="margin:10px 0 4px">คอร์สเขียน EA ด้วย AI</h2>
+      <p style="margin:0 0 20px">สิทธิ์เรียนของคุณเปิดแล้ว — เริ่มจากบทแรกได้เลย</p>
+
+      <div id="lesson-stage" style="max-width:860px">
+        <div class="eyebrow en" style="margin-bottom:10px">บทที่ 1 · INTRODUCE MYSELF</div>
+        <h3 id="lesson-title" style="font-size:clamp(20px,2.4vw,26px);margin:0 0 14px">แนะนำตัว &amp; ภาพรวมคอร์ส</h3>
+        <div style="border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 24px 70px #00000075;background:#000">
+          <video id="lesson-video" controls playsinline preload="metadata"
+                 poster="/assets/lessons/lesson-01-intro-poster.jpg" style="width:100%;height:auto;display:block">
+            <source src="/assets/lessons/lesson-01-intro.mp4" type="video/mp4">
+            เบราว์เซอร์ของคุณไม่รองรับวิดีโอ
+          </video>
+        </div>
+      </div>
+
+      <div style="margin-top:24px">
+        <div class="eyebrow en" style="margin-bottom:12px">เนื้อหาบทเรียน · LESSONS</div>
+        <div id="lesson-list" style="display:grid;gap:10px"></div>
       </div>
     </section>
 
@@ -231,8 +246,50 @@
       }
     });
 
-    // Placeholder until the course player ships.
-    $('btn-start').addEventListener('click', function (e) { e.preventDefault(); });
+    // Course lessons. Add more entries here as videos are produced (src=null = coming soon).
+    var LESSONS = [
+      { no: 1, title: 'แนะนำตัว & ภาพรวมคอร์ส', en: 'Introduce myself',
+        src: '/assets/lessons/lesson-01-intro.mp4', poster: '/assets/lessons/lesson-01-intro-poster.jpg' },
+      { no: 2, title: 'รู้จัก EA และหลักการทำงาน', en: 'What is an EA', src: null },
+      { no: 3, title: 'เขียน Prompt สั่ง AI สร้างโค้ด', en: 'Prompting the AI', src: null },
+      { no: 4, title: 'ออกแบบกลยุทธ์และเงื่อนไข', en: 'Strategy design', src: null },
+      { no: 5, title: 'Backtest และอ่านผล', en: 'Backtesting', src: null },
+      { no: 6, title: 'ปรับปรุงระบบและทดลองบน Demo', en: 'Refine & demo', src: null }
+    ];
+    var lv = $('lesson-video'), lt = $('lesson-title');
+    function playLesson(ls) {
+      if (!ls.src) return;
+      lv.querySelector('source').setAttribute('src', ls.src);
+      lv.setAttribute('poster', ls.poster || '');
+      lv.load();
+      lt.textContent = ls.title;
+      document.querySelector('#lesson-stage .eyebrow').textContent = 'บทที่ ' + ls.no + ' · ' + (ls.en || '').toUpperCase();
+      try { lv.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+      Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function (el) {
+        el.classList.toggle('lesson-active', Number(el.getAttribute('data-lesson')) === ls.no);
+      });
+    }
+    function renderLessons() {
+      $('lesson-list').innerHTML = LESSONS.map(function (ls) {
+        var locked = !ls.src;
+        var right = locked
+          ? '<span style="font-size:12px;color:var(--muted)">เร็วๆ นี้</span>'
+          : '<span style="font-size:13px;color:var(--gold)">▶ เล่น</span>';
+        return '<button type="button" data-lesson="' + ls.no + '"' +
+          (locked ? ' disabled' : '') +
+          ' style="display:flex;align-items:center;gap:14px;text-align:left;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--text);font-family:inherit;cursor:' + (locked ? 'default' : 'pointer') + ';opacity:' + (locked ? '.55' : '1') + '">' +
+          '<span style="font-family:monospace;font-weight:700;color:var(--gold);min-width:26px">' + (ls.no < 10 ? '0' + ls.no : ls.no) + '</span>' +
+          '<span style="flex:1"><b>' + ls.title + '</b><br><span style="font-size:12px;color:var(--muted)">' + ls.en + '</span></span>' +
+          right + '</button>';
+      }).join('');
+      Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function (el) {
+        el.addEventListener('click', function () {
+          var ls = LESSONS.filter(function (x) { return x.no === Number(el.getAttribute('data-lesson')); })[0];
+          if (ls && ls.src) playLesson(ls);
+        });
+      });
+    }
+    renderLessons();
 
     A.onAuthStateChange(function (event) { if (event === 'SIGNED_OUT' && !leaving) location.replace('/login.html?next=%2Flearn.html'); });
   }
