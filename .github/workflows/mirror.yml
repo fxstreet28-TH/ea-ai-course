@@ -1,9 +1,10 @@
-# Auto-mirror this repo to GitLab and/or Bitbucket on every push.
-# Secrets: GITLAB_MIRROR_URL, BITBUCKET_MIRROR_URL (unset = skipped).
 name: Mirror to GitLab & Bitbucket
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   mirror:
     runs-on: ubuntu-latest
@@ -13,32 +14,39 @@ jobs:
           GITLAB_URL: ${{ secrets.GITLAB_MIRROR_URL }}
           BITBUCKET_URL: ${{ secrets.BITBUCKET_MIRROR_URL }}
           SRC: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          GH: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
+          set +e
           git clone --mirror "$SRC" repo.git
           cd repo.git
-          fail=0
+          report="mirror run $(date -u)"
 
           if [ -n "$GITLAB_URL" ]; then
-            echo "=== pushing to GitLab ==="
-            if git push --mirror "$GITLAB_URL"; then echo "GitLab: OK"; else echo "GitLab: FAILED"; fail=1; fi
-          else echo "GitLab: skipped (no secret)"; fi
+            out=$(git push --mirror "$GITLAB_URL" 2>&1); rc=$?
+            report="$report
+== GitLab (rc=$rc) ==
+$out"
+          fi
 
           if [ -n "$BITBUCKET_URL" ]; then
-            echo "=== pushing to Bitbucket ==="
-            # Pull the token out of the URL and auth via header instead of URL
-            # userinfo, so special chars in the token (e.g. '=') can't break parsing.
             rest=${BITBUCKET_URL#https://x-token-auth:}
             BB_TOKEN=${rest%@*}
             BB_PATH=${rest##*@}
             AUTH=$(printf 'x-token-auth:%s' "$BB_TOKEN" | base64 -w0)
-            if git -c http.extraHeader="Authorization: Basic $AUTH" push --mirror "https://$BB_PATH"; then
-              echo "Bitbucket: OK"
-            elif git -c http.extraHeader="Authorization: Bearer $BB_TOKEN" push --mirror "https://$BB_PATH"; then
-              echo "Bitbucket: OK (bearer)"
-            else
-              echo "Bitbucket: FAILED"; fail=1
-            fi
-          else echo "Bitbucket: skipped (no secret)"; fi
+            out=$(git -c http.extraHeader="Authorization: Basic $AUTH" push --mirror "https://$BB_PATH" 2>&1); rc=$?
+            report="$report
+== Bitbucket (rc=$rc) token_len=${#BB_TOKEN} last4=${BB_TOKEN: -4} path=$BB_PATH ==
+$out"
+          fi
 
-          echo "=== done (fail=$fail) ==="
-          exit $fail
+          cd ..
+          printf '%s\n' "$report" > mirror-status.txt
+          echo "$report"
+          content=$(base64 -w0 mirror-status.txt)
+          sha=$(curl -s -H "Authorization: Bearer $GH" "https://api.github.com/repos/$REPO/contents/mirror-status.txt?ref=main" | python3 -c "import sys,json;print(json.load(sys.stdin).get('sha',''))" 2>/dev/null)
+          body="{\"message\":\"chore: mirror status [skip ci]\",\"content\":\"$content\",\"branch\":\"main\""
+          [ -n "$sha" ] && body="$body,\"sha\":\"$sha\""
+          body="$body}"
+          curl -s -X PUT -H "Authorization: Bearer $GH" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/contents/mirror-status.txt" -d "$body" >/dev/null
+          echo "status written"
