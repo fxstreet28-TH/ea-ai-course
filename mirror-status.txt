@@ -1,9 +1,5 @@
-mirror run Fri Oct  2 08:23:36 UTC 2026
+mirror run Fri Oct  2 08:26:10 UTC 2026
 == GitLab (rc=0) ==
 To https://gitlab.com/aurum-tech/ea-ai-course.git
-   ecf0197..a2d2edf  main -> main
-== Bitbucket diag token_len=192 last4=B616 path=bitbucket.org/aurumworkspace/ea-ai-course.git ==
-v1 url-raw rc=128 -> fatal: Authentication failed for 'https://bitbucket.org/aurumworkspace/ea-ai-course.git/'
-v2 url-enc rc=128 -> fatal: Authentication failed for 'https://bitbucket.org/aurumworkspace/ea-ai-course.git/'
-v3 hdr-basic rc=128 -> fatal: could not read Username for 'https://bitbucket.org': No such device or address
-v4 hdr-bearer rc=128 -> fatal: could not read Username for 'https://bitbucket.org': No such device or address
+   a2d2edf..2ad990e  main -> main
+== Bitbucket: skipped (no BITBUCKET_SSH_KEY) ==
