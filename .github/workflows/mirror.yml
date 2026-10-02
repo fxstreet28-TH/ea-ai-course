@@ -1,5 +1,4 @@
 # Auto-mirror this repo to GitLab and/or Bitbucket on every push.
-# Runs on GitHub runners (which can reach GitLab/Bitbucket).
 # Secrets: GITLAB_MIRROR_URL, BITBUCKET_MIRROR_URL (unset = skipped).
 name: Mirror to GitLab & Bitbucket
 on:
@@ -18,13 +17,28 @@ jobs:
           git clone --mirror "$SRC" repo.git
           cd repo.git
           fail=0
+
           if [ -n "$GITLAB_URL" ]; then
             echo "=== pushing to GitLab ==="
             if git push --mirror "$GITLAB_URL"; then echo "GitLab: OK"; else echo "GitLab: FAILED"; fail=1; fi
           else echo "GitLab: skipped (no secret)"; fi
+
           if [ -n "$BITBUCKET_URL" ]; then
             echo "=== pushing to Bitbucket ==="
-            if git push --mirror "$BITBUCKET_URL"; then echo "Bitbucket: OK"; else echo "Bitbucket: FAILED"; fail=1; fi
+            # Pull the token out of the URL and auth via header instead of URL
+            # userinfo, so special chars in the token (e.g. '=') can't break parsing.
+            rest=${BITBUCKET_URL#https://x-token-auth:}
+            BB_TOKEN=${rest%@*}
+            BB_PATH=${rest##*@}
+            AUTH=$(printf 'x-token-auth:%s' "$BB_TOKEN" | base64 -w0)
+            if git -c http.extraHeader="Authorization: Basic $AUTH" push --mirror "https://$BB_PATH"; then
+              echo "Bitbucket: OK"
+            elif git -c http.extraHeader="Authorization: Bearer $BB_TOKEN" push --mirror "https://$BB_PATH"; then
+              echo "Bitbucket: OK (bearer)"
+            else
+              echo "Bitbucket: FAILED"; fail=1
+            fi
           else echo "Bitbucket: skipped (no secret)"; fi
+
           echo "=== done (fail=$fail) ==="
           exit $fail
