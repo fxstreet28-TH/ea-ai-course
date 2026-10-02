@@ -18,32 +18,25 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set +e
+          : > status.txt
+          echo "mirror run $(date -u)" >> status.txt
           git clone --mirror "$SRC" repo.git
           cd repo.git
-          report="mirror run $(date -u)"
-
           if [ -n "$GITLAB_URL" ]; then
             out=$(git push --mirror "$GITLAB_URL" 2>&1); rc=$?
-            report="$report
-== GitLab (rc=$rc) ==
-$out"
+            { echo "== GitLab (rc=$rc) =="; echo "$out"; } >> ../status.txt
           fi
-
           if [ -n "$BITBUCKET_URL" ]; then
             rest=${BITBUCKET_URL#https://x-token-auth:}
             BB_TOKEN=${rest%@*}
             BB_PATH=${rest##*@}
             AUTH=$(printf 'x-token-auth:%s' "$BB_TOKEN" | base64 -w0)
             out=$(git -c http.extraHeader="Authorization: Basic $AUTH" push --mirror "https://$BB_PATH" 2>&1); rc=$?
-            report="$report
-== Bitbucket (rc=$rc) token_len=${#BB_TOKEN} last4=${BB_TOKEN: -4} path=$BB_PATH ==
-$out"
+            { echo "== Bitbucket (rc=$rc) token_len=${#BB_TOKEN} last4=${BB_TOKEN: -4} path=$BB_PATH =="; echo "$out"; } >> ../status.txt
           fi
-
           cd ..
-          printf '%s\n' "$report" > mirror-status.txt
-          echo "$report"
-          content=$(base64 -w0 mirror-status.txt)
+          cat status.txt
+          content=$(base64 -w0 status.txt)
           sha=$(curl -s -H "Authorization: Bearer $GH" "https://api.github.com/repos/$REPO/contents/mirror-status.txt?ref=main" | python3 -c "import sys,json;print(json.load(sys.stdin).get('sha',''))" 2>/dev/null)
           body="{\"message\":\"chore: mirror status [skip ci]\",\"content\":\"$content\",\"branch\":\"main\""
           [ -n "$sha" ] && body="$body,\"sha\":\"$sha\""
