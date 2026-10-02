@@ -7,7 +7,52 @@
 <meta name="robots" content="noindex">
 <title>ห้องเรียน — EA / AI</title>
 <link rel="stylesheet" href="/assets/site.css">
-<style>[data-lesson].lesson-active{border-color:var(--gold)!important;background:linear-gradient(90deg,#61e9ff14,transparent)!important;opacity:1!important}</style>
+<style>
+  .learn-head{margin:0 0 22px}
+  .learn-head h2{font-size:clamp(22px,2.6vw,30px);margin:12px 0 0}
+  .learn-grid{display:grid;grid-template-columns:1fr 360px;gap:22px;align-items:start}
+  @media(max-width:900px){ .learn-grid{grid-template-columns:1fr} }
+
+  .stage-card{background:linear-gradient(160deg,#15173a 0%,var(--panel) 55%);border:1px solid var(--line);border-radius:18px;padding:22px 22px 24px;box-shadow:0 20px 60px #00000055}
+  .stage-kicker{margin-bottom:12px}
+  .stage-title{font-size:clamp(19px,2.2vw,25px);margin:0 0 16px;line-height:1.4}
+  .video-frame{border-radius:14px;overflow:hidden;border:1px solid var(--line);box-shadow:0 24px 70px #00000075;background:#000}
+
+  .article-body{color:#e9ebff;font-size:16px;line-height:1.95;max-width:none}
+  .article-body h4{font-family:'Space Grotesk',sans-serif;color:var(--gold);font-size:18px;margin:26px 0 8px}
+  .article-body h4:first-child{margin-top:0}
+  .article-body p{margin:0 0 15px}
+  .article-body ul{margin:0 0 15px;padding-left:22px}
+  .article-body li{margin:4px 0}
+
+  .files-card{margin-top:16px;background:#0b0c1c;border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .files-head{font-family:'Space Grotesk',sans-serif;font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .files-list{display:grid;gap:9px}
+  .file-dl{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;text-decoration:none;color:var(--text);transition:.15s}
+  .file-dl:hover{border-color:var(--gold);transform:translateY(-1px)}
+  .file-dl .fi{width:34px;height:34px;flex:none;display:grid;place-items:center;background:#61e9ff18;border:1px solid #61e9ff33;border-radius:9px;font-size:15px}
+  .file-dl .fn{flex:1;min-width:0}
+  .file-dl .fn b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file-dl .fn span{font-size:11.5px;color:var(--muted)}
+  .file-dl .fd{color:var(--gold);font-size:13px;white-space:nowrap}
+
+  .learn-side{background:linear-gradient(160deg,#15173a 0%,var(--panel) 55%);border:1px solid var(--line);border-radius:18px;padding:18px;position:sticky;top:18px}
+  @media(max-width:900px){ .learn-side{position:static} }
+  .side-group+.side-group{margin-top:18px}
+  .side-group-ttl{font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:0 2px 10px}
+  .side-list{display:grid;gap:8px}
+  .les-item{display:flex;align-items:center;gap:12px;text-align:left;width:100%;background:#0b0c1c;border:1px solid var(--line);border-radius:12px;padding:12px 13px;color:var(--text);font-family:inherit;cursor:pointer;transition:.15s}
+  .les-item:hover{border-color:#61e9ff66}
+  .les-item[disabled]{opacity:.5;cursor:default}
+  .les-item.lesson-active{border-color:var(--gold);background:linear-gradient(90deg,#61e9ff1c,#0b0c1c 70%)}
+  .les-item .no{font-family:'Space Grotesk',monospace;font-weight:700;color:var(--gold);min-width:30px;font-size:15px}
+  .les-item .no.intro{font-size:17px}
+  .les-item .tx{flex:1;min-width:0}
+  .les-item .tx b{font-size:14.5px;display:block;line-height:1.4}
+  .les-item .tx span{font-size:11.5px;color:var(--muted)}
+  .les-item .kd{font-size:11px;color:var(--muted);white-space:nowrap}
+  .les-item .pin{font-size:11px;color:var(--gold);display:flex;align-items:center;gap:4px;white-space:nowrap}
+</style>
 </head>
 <body>
 <div id="app-loading" class="loading" aria-live="polite">
@@ -72,25 +117,50 @@
       </div>
     </section>
 
-    <section class="panel status-card" id="card-access" hidden>
-      <span class="eyebrow en">ACCESS GRANTED · เริ่มเรียนได้เลย</span>
-      <h2 style="margin:10px 0 4px">คอร์สเขียน EA ด้วย AI</h2>
-      <p style="margin:0 0 20px">สิทธิ์เรียนของคุณเปิดแล้ว — เริ่มจากบทแรกได้เลย</p>
-
-      <div id="lesson-stage" style="max-width:860px">
-        <div class="eyebrow en" style="margin-bottom:10px">บทเรียน · LESSONS</div>
-        <h3 id="lesson-title" style="font-size:clamp(20px,2.4vw,26px);margin:0 0 14px">กำลังโหลดบทเรียน…</h3>
-        <div style="border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 24px 70px #00000075;background:#000">
-          <video id="lesson-video" controls playsinline preload="metadata" style="width:100%;height:auto;display:block">
-            <source src="" type="video/mp4">
-            เบราว์เซอร์ของคุณไม่รองรับวิดีโอ
-          </video>
-        </div>
+    <section id="card-access" hidden>
+      <div class="learn-head">
+        <span class="eyebrow en">ACCESS GRANTED · เริ่มเรียนได้เลย</span>
+        <h2>คอร์สเขียน EA ด้วย AI</h2>
+        <p class="muted" style="margin:6px 0 0">สิทธิ์เรียนของคุณเปิดแล้ว — เลือกบทเรียนทางขวาเพื่อเริ่มเรียน</p>
       </div>
 
-      <div style="margin-top:24px">
-        <div class="eyebrow en" style="margin-bottom:12px">เนื้อหาบทเรียน · LESSONS</div>
-        <div id="lesson-list" style="display:grid;gap:10px"></div>
+      <div class="learn-grid">
+        <!-- STAGE: video OR article -->
+        <div class="learn-stage">
+          <div id="lesson-stage" class="stage-card">
+            <div class="stage-kicker"><span id="lesson-kicker" class="eyebrow en" style="margin:0">LESSON</span></div>
+            <h3 id="lesson-title" class="stage-title">กำลังโหลดบทเรียน…</h3>
+
+            <!-- Video mode -->
+            <div id="stage-video-wrap" class="video-frame">
+              <video id="lesson-video" controls playsinline preload="metadata" style="width:100%;height:auto;display:block">
+                <source src="" type="video/mp4">
+                เบราว์เซอร์ของคุณไม่รองรับวิดีโอ
+              </video>
+            </div>
+
+            <!-- Article mode -->
+            <article id="stage-article" class="article-body" hidden></article>
+          </div>
+
+          <!-- Attachments for current lesson -->
+          <div id="lesson-files" class="files-card" hidden>
+            <div class="files-head"><span>📎</span> ไฟล์ประกอบบทเรียนนี้ <span class="muted" style="font-weight:400">· ดาวน์โหลดได้</span></div>
+            <div id="lesson-files-list" class="files-list"></div>
+          </div>
+        </div>
+
+        <!-- SIDEBAR: lesson list -->
+        <aside class="learn-side">
+          <div id="intro-group" class="side-group" hidden>
+            <div class="side-group-ttl">เกริ่นนำ · เริ่มต้นที่นี่</div>
+            <div id="intro-list" class="side-list"></div>
+          </div>
+          <div id="lesson-group" class="side-group">
+            <div class="side-group-ttl">บทเรียน · LESSONS</div>
+            <div id="lesson-list" class="side-list"></div>
+          </div>
+        </aside>
       </div>
     </section>
 
@@ -249,90 +319,167 @@
     });
 
     // Course lessons — loaded live from the CRM (Supabase). CEO Por adds/uploads
-    // lessons in admin.html; they appear here automatically. No hardcoding.
+    // lessons (video or article, with attachments) in admin.html; they appear
+    // here automatically. Intro clips show in a separate "เกริ่นนำ" group and are
+    // NOT numbered; numbered lessons start at บทที่ 1.
     var LESSONS = [];
     var lessonsLoaded = false;
     var lv = $('lesson-video'), lt = $('lesson-title');
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+    function fmtSize(n){ if(!n&&n!==0) return ''; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+    function fileIcon(name,mime){ var s=((name||'')+' '+(mime||'')).toLowerCase();
+      if(/\.(ex4|ex5|mq4|mq5)\b/.test(s)) return '🤖';
+      if(/pdf/.test(s)) return '📕'; if(/\.(zip|rar|7z)\b/.test(s)) return '🗜️';
+      if(/(xls|sheet|csv)/.test(s)) return '📊'; if(/(doc|word)/.test(s)) return '📝';
+      if(/image|\.(png|jpe?g|gif|webp)\b/.test(s)) return '🖼️'; return '📄'; }
 
-    function playLesson(ls) {
-      if (!ls.src) return;
-      lv.querySelector('source').setAttribute('src', ls.src);
-      lv.setAttribute('poster', ls.poster || '');
-      lv.load();
+    // Turn plain article text into simple safe HTML (escape first, then
+    // headings with leading #, bullet lines with -/•, blank-line paragraphs).
+    function articleToHtml(text){
+      var lines = esc(text||'').replace(/\r\n/g,'\n').split('\n');
+      var html='', inUl=false;
+      function closeUl(){ if(inUl){ html+='</ul>'; inUl=false; } }
+      var para=[];
+      function flushPara(){ if(para.length){ html+='<p>'+para.join('<br>')+'</p>'; para=[]; } }
+      for(var i=0;i<lines.length;i++){
+        var ln=lines[i].trim();
+        if(ln===''){ flushPara(); closeUl(); continue; }
+        if(/^#{1,4}\s+/.test(ln)){ flushPara(); closeUl(); html+='<h4>'+ln.replace(/^#{1,4}\s+/,'')+'</h4>'; continue; }
+        if(/^(-|•|\*)\s+/.test(ln)){ flushPara(); if(!inUl){ html+='<ul>'; inUl=true; } html+='<li>'+ln.replace(/^(-|•|\*)\s+/,'')+'</li>'; continue; }
+        para.push(ln);
+      }
+      flushPara(); closeUl();
+      return html || '<p class="muted">—</p>';
+    }
+
+    function renderFiles(atts){
+      var box=$('lesson-files'), list=$('lesson-files-list');
+      atts = atts||[];
+      if(!atts.length){ box.hidden=true; list.innerHTML=''; return; }
+      box.hidden=false;
+      list.innerHTML = atts.map(function(a){
+        return '<a class="file-dl" href="'+esc(a.url||'#')+'" target="_blank" rel="noopener" download>'+
+          '<span class="fi">'+fileIcon(a.title,a.mime)+'</span>'+
+          '<span class="fn"><b>'+esc(a.title)+'</b><span>'+esc(fmtSize(a.size_bytes))+'</span></span>'+
+          '<span class="fd">ดาวน์โหลด ↓</span></a>';
+      }).join('');
+    }
+
+    function openLesson(ls){
+      if(!ls) return;
       lt.textContent = ls.title;
-      document.querySelector('#lesson-stage .eyebrow').textContent = 'บทที่ ' + ls.no + ' · ' + (ls.en || 'LESSON').toUpperCase();
-      try { lv.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
-      Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function (el) {
-        el.classList.toggle('lesson-active', Number(el.getAttribute('data-lesson')) === ls.no);
+      var kick = ls.isIntro ? ('เกริ่นนำ · ' + (ls.en||'INTRO').toUpperCase())
+                            : ('บทที่ ' + ls.no + ' · ' + (ls.en||'LESSON').toUpperCase());
+      $('lesson-kicker').textContent = kick;
+
+      if(ls.kind==='article'){
+        $('stage-video-wrap').hidden = true;
+        try{ lv.pause(); }catch(e){}
+        var art=$('stage-article'); art.hidden=false; art.innerHTML=articleToHtml(ls.content);
+      } else {
+        $('stage-article').hidden = true;
+        $('stage-video-wrap').hidden = false;
+        if(ls.src){ lv.querySelector('source').setAttribute('src', ls.src); lv.setAttribute('poster', ls.poster||''); lv.load(); }
+      }
+      renderFiles(ls.attachments);
+      try { $('lesson-stage').scrollIntoView({ behavior:'smooth', block:'start' }); } catch(e){}
+      Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function(el){
+        el.classList.toggle('lesson-active', el.getAttribute('data-lesson')===String(ls.key));
       });
     }
-    function renderLessons() {
-      var list = $('lesson-list');
-      if (!LESSONS.length) {
-        list.innerHTML = lessonsLoaded
-          ? '<div style="padding:20px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);text-align:center">เนื้อหาบทเรียนกำลังจะมาเร็วๆ นี้ ✨</div>'
-          : '<div style="padding:20px;color:var(--muted);text-align:center">กำลังโหลดบทเรียน…</div>';
-        return;
+
+    function itemHtml(ls){
+      var locked = (ls.kind!=='article' && !ls.src);
+      var numHtml = ls.isIntro
+        ? '<span class="no intro">★</span>'
+        : '<span class="no">'+(ls.no<10?'0'+ls.no:ls.no)+'</span>';
+      var kindTxt = ls.kind==='article' ? '📄 บทความ' : '▶ วิดีโอ';
+      var right = locked
+        ? '<span class="kd">เร็วๆ นี้</span>'
+        : '<span class="pin">'+kindTxt+'</span>';
+      return '<button type="button" class="les-item" data-lesson="'+esc(ls.key)+'"'+(locked?' disabled':'')+'>'+
+        numHtml+
+        '<span class="tx"><b>'+esc(ls.title)+'</b>'+(ls.en?'<span>'+esc(ls.en)+'</span>':'')+'</span>'+
+        right+'</button>';
+    }
+
+    function renderLessons(){
+      var intros = LESSONS.filter(function(x){ return x.isIntro; });
+      var mains  = LESSONS.filter(function(x){ return !x.isIntro; });
+      var introList=$('intro-list'), mainList=$('lesson-list');
+
+      $('intro-group').hidden = !intros.length;
+      if(intros.length) introList.innerHTML = intros.map(itemHtml).join('');
+
+      if(!mains.length){
+        mainList.innerHTML = lessonsLoaded
+          ? '<div style="padding:18px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);text-align:center;font-size:14px">เนื้อหาบทเรียนกำลังจะมาเร็วๆ นี้ ✨</div>'
+          : '<div style="padding:18px;color:var(--muted);text-align:center;font-size:14px">กำลังโหลดบทเรียน…</div>';
+      } else {
+        mainList.innerHTML = mains.map(itemHtml).join('');
       }
-      list.innerHTML = LESSONS.map(function (ls) {
-        var locked = !ls.src;
-        var right = locked
-          ? '<span style="font-size:12px;color:var(--muted)">เร็วๆ นี้</span>'
-          : '<span style="font-size:13px;color:var(--gold)">▶ เล่น</span>';
-        return '<button type="button" data-lesson="' + ls.no + '"' +
-          (locked ? ' disabled' : '') +
-          ' style="display:flex;align-items:center;gap:14px;text-align:left;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--text);font-family:inherit;cursor:' + (locked ? 'default' : 'pointer') + ';opacity:' + (locked ? '.55' : '1') + '">' +
-          '<span style="font-family:monospace;font-weight:700;color:var(--gold);min-width:26px">' + (ls.no < 10 ? '0' + ls.no : ls.no) + '</span>' +
-          '<span style="flex:1"><b>' + esc(ls.title) + '</b>' + (ls.en ? '<br><span style="font-size:12px;color:var(--muted)">' + esc(ls.en) + '</span>' : '') + '</span>' +
-          right + '</button>';
-      }).join('');
-      Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function (el) {
-        el.addEventListener('click', function () {
-          var ls = LESSONS.filter(function (x) { return x.no === Number(el.getAttribute('data-lesson')); })[0];
-          if (ls && ls.src) playLesson(ls);
+
+      Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function(el){
+        el.addEventListener('click', function(){
+          var ls = LESSONS.filter(function(x){ return String(x.key)===el.getAttribute('data-lesson'); })[0];
+          if(ls && !(ls.kind!=='article' && !ls.src)) openLesson(ls);
         });
       });
     }
 
-    // Bundled lessons — always available, shown instantly (never a blank/stuck player).
+    // Bundled fallback — the 2 intro clips, shown instantly if the live feed is slow/unavailable.
     var DEFAULT_LESSONS = [
-      { no: 1, title: 'แนะนำตัว & ภาพรวมคอร์ส', en: 'Introduce myself',
-        src: '/assets/lessons/lesson-01-intro.mp4', poster: '/assets/lessons/lesson-01-intro-poster.jpg' },
-      { no: 2, title: 'คุณค่าของการเขียน EA ได้ด้วยตัวเอง', en: 'Why write your own EA',
-        src: '/assets/lessons/lesson-02-value.mp4', poster: '/assets/lessons/lesson-02-value-poster.jpg' }
+      { key:'d1', isIntro:true, kind:'video', title:'แนะนำตัว & ภาพรวมคอร์ส', en:'Introduce myself',
+        src:'/assets/lessons/lesson-01-intro.mp4', poster:'/assets/lessons/lesson-01-intro-poster.jpg', attachments:[] },
+      { key:'d2', isIntro:true, kind:'video', title:'คุณค่าของการเขียน EA ได้ด้วยตัวเอง', en:'Why write your own EA',
+        src:'/assets/lessons/lesson-02-value.mp4', poster:'/assets/lessons/lesson-02-value-poster.jpg', attachments:[] }
     ];
 
-    function applyLessons(list) {
+    function applyLessons(list){
+      // Assign display numbers: intros get none; non-intros count 1..n in order.
+      var n=0;
+      list.forEach(function(ls){ if(ls.isIntro){ ls.no=null; } else { n++; ls.no=n; } });
       LESSONS = list;
       lessonsLoaded = true;
       renderLessons();
-      var first = LESSONS.filter(function (x) { return x.src; })[0];
-      if (first) playLesson(first);
+      // Open the first playable item (prefer บทที่ 1, else first intro).
+      var firstMain = LESSONS.filter(function(x){ return !x.isIntro && (x.kind==='article'||x.src); })[0];
+      var firstAny  = LESSONS.filter(function(x){ return x.kind==='article'||x.src; })[0];
+      openLesson(firstMain || firstAny);
     }
 
-    async function loadLessons() {
-      // Show bundled lessons immediately — classroom is never empty or stuck.
-      applyLessons(DEFAULT_LESSONS);
-      // Then try to enhance with CMS lessons (uploaded from the admin console).
+    async function loadLessons(){
+      // Show bundled intros immediately — classroom is never empty or stuck.
+      applyLessons(DEFAULT_LESSONS.slice());
+      // Then replace with live CMS lessons (uploaded from the admin console).
       try {
         var sess = (await A.getClient().auth.getSession()).data.session;
         var ctrl = new AbortController();
-        var to = setTimeout(function () { ctrl.abort(); }, 15000);
+        var to = setTimeout(function(){ ctrl.abort(); }, 15000);
         var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/lessons', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + (sess ? sess.access_token : ''), 'apikey': cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-          body: '{}', signal: ctrl.signal
+          method:'POST',
+          headers:{ 'Authorization':'Bearer '+(sess?sess.access_token:''), 'apikey':cfg.SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+          body:'{}', signal:ctrl.signal
         });
         clearTimeout(to);
-        var data = await resp.json().catch(function () { return {}; });
+        var data = await resp.json().catch(function(){ return {}; });
         var rows = (data && data.lessons) || [];
         if (rows.length) {
-          applyLessons(rows.map(function (r, i) {
-            return { no: i + 1, title: r.title, en: r.title_en || '', src: r.url || null, poster: r.poster_url || '' };
+          applyLessons(rows.map(function(r){
+            return {
+              key: r.id,
+              isIntro: !!r.is_intro,
+              kind: r.kind==='article' ? 'article' : 'video',
+              title: r.title,
+              en: r.title_en || '',
+              src: r.url || null,
+              content: r.content || '',
+              poster: r.poster_url || '',
+              attachments: r.attachments || []
+            };
           }));
         }
-      } catch (e) { /* keep bundled lessons */ }
+      } catch (e) { /* keep bundled intros */ }
     }
 
     // Initialise lessons now that everything above is defined.

@@ -175,6 +175,8 @@ Deno.serve(async (req) => {
   if (action === "list_lessons") {
     const { data } = await admin.from("lessons")
       .select("*").order("position", { ascending: true }).order("created_at", { ascending: true });
+    const { data: atts } = await admin.from("lesson_attachments")
+      .select("*").order("position", { ascending: true }).order("created_at", { ascending: true });
     const out: any[] = [];
     for (const l of data || []) {
       let url = l.external_url || null;
@@ -182,7 +184,12 @@ Deno.serve(async (req) => {
         const s = await admin.storage.from("lessons").createSignedUrl(l.storage_path, 60 * 60 * 6);
         url = s.data?.signedUrl || null;
       }
-      out.push({ ...l, url });
+      const myAtts: any[] = [];
+      for (const a of (atts || []).filter((x: any) => x.lesson_id === l.id)) {
+        const sa = await admin.storage.from("attachments").createSignedUrl(a.storage_path, 60 * 60 * 6);
+        myAtts.push({ id: a.id, title: a.title, mime: a.mime, size_bytes: a.size_bytes, url: sa.data?.signedUrl || null });
+      }
+      out.push({ ...l, url, attachments: myAtts });
     }
     return json({ lessons: out }, 200, origin);
   }
@@ -211,6 +218,9 @@ Deno.serve(async (req) => {
       title, position,
       title_en: body.title_en ? String(body.title_en) : null,
       description: body.description ? String(body.description) : null,
+      kind: body.kind === "article" ? "article" : "video",
+      content: body.content ? String(body.content) : null,
+      is_intro: body.is_intro === true,
       is_published: body.is_published === false ? false : true,
     };
     if (body.storage_path) row.storage_path = String(body.storage_path);
@@ -230,6 +240,9 @@ Deno.serve(async (req) => {
     if (body.description != null) patch.description = String(body.description) || null;
     if (body.position != null) patch.position = Number(body.position);
     if (body.is_published != null) patch.is_published = !!body.is_published;
+    if (body.is_intro != null) patch.is_intro = !!body.is_intro;
+    if (body.kind != null) patch.kind = body.kind === "article" ? "article" : "video";
+    if (body.content != null) patch.content = String(body.content) || null;
     const { error } = await admin.from("lessons").update(patch).eq("id", id);
     if (error) return json({ result: "error", detail: error.message }, 200, origin);
     return json({ result: "ok" }, 200, origin);
@@ -241,6 +254,41 @@ Deno.serve(async (req) => {
     const { data: row } = await admin.from("lessons").select("storage_path").eq("id", id).single();
     if (row?.storage_path) { await admin.storage.from("lessons").remove([row.storage_path]); }
     const { error } = await admin.from("lessons").delete().eq("id", id);
+    if (error) return json({ result: "error", detail: error.message }, 200, origin);
+    return json({ result: "ok" }, 200, origin);
+  }
+
+  // ---- Attachments (EA samples / documents) ----
+  if (action === "create_attachment_upload") {
+    const name = String(body.filename || "file.bin");
+    const dot = name.lastIndexOf(".");
+    const ext = ((dot > -1 ? name.slice(dot + 1) : "bin").toLowerCase().replace(/[^a-z0-9]/g, "")) || "bin";
+    const path = `files/${crypto.randomUUID()}.${ext}`;
+    const { data, error } = await admin.storage.from("attachments").createSignedUploadUrl(path);
+    if (error || !data) return json({ result: "error", detail: error?.message || "upload_url_failed" }, 200, origin);
+    return json({ result: "ok", path, token: data.token, signedUrl: data.signedUrl }, 200, origin);
+  }
+
+  if (action === "save_attachment") {
+    const lesson_id = String(body.lesson_id || "");
+    const title = String(body.title || "").trim();
+    const storage_path = String(body.storage_path || "");
+    if (!lesson_id || !title || !storage_path) return json({ result: "missing" }, 200, origin);
+    const { error } = await admin.from("lesson_attachments").insert({
+      lesson_id, title, storage_path,
+      mime: body.mime ? String(body.mime) : null,
+      size_bytes: Number.isFinite(Number(body.size_bytes)) ? Number(body.size_bytes) : null,
+    });
+    if (error) return json({ result: "error", detail: error.message }, 200, origin);
+    return json({ result: "ok" }, 200, origin);
+  }
+
+  if (action === "delete_attachment") {
+    const id = String(body.id || "");
+    if (!id) return json({ result: "no_id" }, 200, origin);
+    const { data: row } = await admin.from("lesson_attachments").select("storage_path").eq("id", id).single();
+    if (row?.storage_path) { await admin.storage.from("attachments").remove([row.storage_path]); }
+    const { error } = await admin.from("lesson_attachments").delete().eq("id", id);
     if (error) return json({ result: "error", detail: error.message }, 200, origin);
     return json({ result: "ok" }, 200, origin);
   }

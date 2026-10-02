@@ -94,6 +94,30 @@
   .field{margin-bottom:16px}
   .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px}
   .field input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:13px 14px;color:var(--text);font-family:inherit;font-size:15px}
+  .field textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:13px 14px;color:var(--text);font-family:inherit;font-size:15px;line-height:1.7;resize:vertical;min-height:150px}
+  .field input[type=file]{padding:10px 12px;font-size:13.5px}
+  .seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:4px;gap:4px}
+  .seg-btn{background:none;border:0;color:var(--muted);font-family:'Space Grotesk',inherit;font-weight:600;font-size:14px;padding:9px 18px;border-radius:8px;cursor:pointer;transition:.15s}
+  .seg-btn:hover{color:var(--text)}
+  .seg-btn.active{background:var(--gold);color:#1a1405}
+  .chk{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;color:var(--muted);margin:2px 0 4px;cursor:pointer;line-height:1.5}
+  .chk input{width:17px;height:17px;margin-top:2px;accent-color:var(--gold);cursor:pointer;flex:none}
+  .badge.kind-v{background:#101a22;color:#8fd3ff;border:1px solid #4aa3d822}
+  .badge.kind-a{background:#1a1622;color:#c6a3ff;border:1px solid #9a7bd822}
+  .les-card{background:#ffffff08;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .les-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .les-ttl{flex:1;min-width:140px}
+  .les-label{font-family:'Space Grotesk';font-weight:700;font-size:12.5px;padding:5px 11px;border-radius:8px;white-space:nowrap}
+  .les-label.tag-num{background:#d4af3718;color:var(--gold2);border:1px solid #d4af3744}
+  .les-label.tag-intro{background:#ffffff10;color:var(--muted);border:1px solid var(--line)}
+  .les-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+  .att-list{display:flex;flex-wrap:wrap;gap:7px;flex:1;min-width:160px}
+  .att-row{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px}
+  .att-ic{font-size:12px}
+  .att-name{font-size:12.5px;color:var(--gold2);text-decoration:none;border-bottom:1px dashed #d4af3755;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .att-name:hover{color:#f0d780}
+  .att-x{background:none;border:0;color:var(--red);cursor:pointer;font-size:12px;padding:0 2px;line-height:1}
+  .att-add{cursor:pointer;white-space:nowrap}
   .msg{margin-top:14px;font-size:14px;padding:12px 15px;border-radius:10px;display:none}
   .msg.show{display:block}
   .msg.ok{background:#0f1a12;color:var(--green);border:1px solid #7ee0a844}
@@ -184,12 +208,39 @@
 
       <div class="panel-box">
         <h3>+ เพิ่มบทเรียนใหม่</h3>
-        <p class="desc">ตั้งชื่อบท เลือกไฟล์วิดีโอ (.mp4) แล้วกดอัพโหลด — รองรับไฟล์สูงสุด 500MB ต่อคลิป</p>
+        <p class="desc">เลือกชนิดบทเรียน (วิดีโอ หรือ บทความ) ใส่เนื้อหา แนบไฟล์ประกอบได้ แล้วกดบันทึก</p>
+
+        <div class="field">
+          <label>ชนิดบทเรียน</label>
+          <div class="seg" id="les-kind-seg">
+            <button type="button" class="seg-btn active" data-kind="video">▶ วิดีโอ</button>
+            <button type="button" class="seg-btn" data-kind="article">📄 บทความ</button>
+          </div>
+        </div>
+
         <div class="field"><label>ชื่อบทเรียน (ภาษาไทย) *</label><input id="les-title" type="text" placeholder="เช่น รู้จัก EA และหลักการทำงาน" autocomplete="off"></div>
         <div class="field"><label>ชื่อรอง / ภาษาอังกฤษ (ไม่บังคับ)</label><input id="les-title-en" type="text" placeholder="เช่น What is an EA" autocomplete="off"></div>
-        <div class="field"><label>ไฟล์วิดีโอ *</label><input id="les-file" type="file" accept="video/mp4,video/quicktime,video/webm"></div>
+
+        <label class="chk"><input type="checkbox" id="les-intro"> <span>เป็นคลิป/บทเกริ่นนำ (Intro) — จะไม่ถูกนับเป็น “บทที่ N” แต่แสดงในส่วนเกริ่นนำด้านบน</span></label>
+
+        <!-- VIDEO fields -->
+        <div id="les-video-fields">
+          <div class="field" style="margin-top:16px"><label>ไฟล์วิดีโอ *</label><input id="les-file" type="file" accept="video/mp4,video/quicktime,video/webm"></div>
+        </div>
+
+        <!-- ARTICLE fields -->
+        <div id="les-article-fields" hidden>
+          <div class="field" style="margin-top:16px"><label>เนื้อหาบทความ *</label><textarea id="les-content" rows="10" placeholder="พิมพ์เนื้อหาบทความได้เลย — เว้นบรรทัดเพื่อขึ้นย่อหน้าใหม่ ใช้หัวข้อย่อยด้วย # นำหน้าได้"></textarea></div>
+        </div>
+
+        <!-- ATTACHMENTS -->
+        <div class="field" style="margin-top:4px">
+          <label>ไฟล์แนบ / เอกสารประกอบ (ไม่บังคับ) — ไฟล์ EA ตัวอย่าง, PDF, .ex4/.ex5/.mq4/.mq5, zip ฯลฯ เลือกได้หลายไฟล์</label>
+          <input id="les-attach" type="file" multiple>
+        </div>
+
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <button class="btn" id="btn-upload">อัพโหลดบทเรียน</button>
+          <button class="btn" id="btn-upload">บันทึกบทเรียน</button>
           <div id="up-progress" style="flex:1;min-width:160px;height:8px;background:#ffffff14;border-radius:99px;overflow:hidden;display:none">
             <div id="up-bar" style="height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .2s"></div>
           </div>
@@ -330,29 +381,76 @@
 
   // ---------------- Lessons CMS ----------------
   var lessonsLoadedOnce = false;
+  var lesKind = 'video';
   function lmsg(kind,text){ var m=$('les-msg'); m.className='msg show '+kind; m.textContent=text; }
   function setBar(p){ $('up-bar').style.width=p+'%'; }
+  function fmtSize(n){ if(!n&&n!==0) return ''; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
 
   function renderLessonList(rows){
     var el=$('les-list');
     if(!rows.length){ el.innerHTML='<div class="empty">ยังไม่มีบทเรียน — เพิ่มบทแรกด้านบนได้เลย</div>'; return; }
+    // Numbered lessons count only non-intro ones (บทที่ 1,2,3…); intros show a tag.
+    var n=0;
     el.innerHTML=rows.map(function(l){
-      var num=(l.position<10?'0'+l.position:l.position);
+      var isArticle=(l.kind==='article');
+      var label, labelCls;
+      if(l.is_intro){ label='เกริ่นนำ'; labelCls='tag-intro'; }
+      else { n++; label='บทที่ '+n; labelCls='tag-num'; }
+      var kindBadge=isArticle?'<span class="badge kind-a">📄 บทความ</span>':'<span class="badge kind-v">▶ วิดีโอ</span>';
       var pub=l.is_published?'<span class="badge on">● แสดง</span>':'<span class="badge off">○ ซ่อน</span>';
-      var prev=l.url?'<a class="btn ghost sm" href="'+esc(l.url)+'" target="_blank" rel="noopener">▶ ดู</a>':'<span class="muted">—</span>';
-      return '<div style="display:flex;align-items:center;gap:12px;background:#ffffff08;border:1px solid var(--line);border-radius:12px;padding:12px 14px;flex-wrap:wrap">'+
-        '<span class="mono" style="color:var(--gold);font-weight:700;min-width:28px">'+num+'</span>'+
-        '<span style="flex:1;min-width:140px"><b>'+esc(l.title)+'</b>'+(l.title_en?'<br><span class="muted" style="font-size:12px">'+esc(l.title_en)+'</span>':'')+'</span>'+
-        pub+prev+
-        '<button class="btn danger sm" data-del="'+esc(l.id)+'">ลบ</button>'+
+      var prev=(!isArticle&&l.url)?'<a class="btn ghost sm" href="'+esc(l.url)+'" target="_blank" rel="noopener">▶ ดู</a>':'';
+      var atts=(l.attachments||[]);
+      var attHtml=atts.map(function(a){
+        return '<div class="att-row"><span class="att-ic">📎</span><a href="'+esc(a.url||'#')+'" target="_blank" rel="noopener" class="att-name">'+esc(a.title)+'</a>'+
+          '<span class="muted" style="font-size:11.5px">'+esc(fmtSize(a.size_bytes))+'</span>'+
+          '<button class="att-x" data-delatt="'+esc(a.id)+'" title="ลบไฟล์แนบ">✕</button></div>';
+      }).join('');
+      return '<div class="les-card" data-lid="'+esc(l.id)+'">'+
+        '<div class="les-head">'+
+          '<span class="les-label '+labelCls+'">'+label+'</span>'+
+          '<span class="les-ttl"><b>'+esc(l.title)+'</b>'+(l.title_en?'<br><span class="muted" style="font-size:12px">'+esc(l.title_en)+'</span>':'')+'</span>'+
+          kindBadge+pub+prev+
+          '<button class="btn danger sm" data-del="'+esc(l.id)+'">ลบ</button>'+
+        '</div>'+
+        '<div class="les-foot">'+
+          '<div class="att-list">'+(attHtml||'<span class="muted" style="font-size:12.5px">— ยังไม่มีไฟล์แนบ —</span>')+'</div>'+
+          '<label class="btn ghost sm att-add">+ แนบไฟล์<input type="file" multiple data-addatt="'+esc(l.id)+'" style="display:none"></label>'+
+        '</div>'+
       '</div>';
     }).join('');
+    // Delete lesson
     Array.prototype.forEach.call(el.querySelectorAll('[data-del]'),function(b){
       b.addEventListener('click',async function(){
         if(!confirm('ลบบทเรียนนี้? การลบไม่สามารถกู้คืนได้')) return;
         b.disabled=true; b.textContent='...';
         var r=await api('delete_lesson',{id:b.getAttribute('data-del')});
         if(r.body.result==='ok') loadLessonList(); else { b.disabled=false; b.textContent='ลบ'; }
+      });
+    });
+    // Delete attachment
+    Array.prototype.forEach.call(el.querySelectorAll('[data-delatt]'),function(b){
+      b.addEventListener('click',async function(){
+        if(!confirm('ลบไฟล์แนบนี้?')) return;
+        b.disabled=true; b.textContent='…';
+        var r=await api('delete_attachment',{id:b.getAttribute('data-delatt')});
+        if(r.body.result==='ok') loadLessonList(); else { b.disabled=false; b.textContent='✕'; }
+      });
+    });
+    // Add attachment(s) to an existing lesson
+    Array.prototype.forEach.call(el.querySelectorAll('[data-addatt]'),function(inp){
+      inp.addEventListener('change',async function(){
+        var files=inp.files; if(!files||!files.length) return;
+        var lid=inp.getAttribute('data-addatt');
+        var card=el.querySelector('.les-card[data-lid="'+lid+'"]');
+        var addBtn=card?card.querySelector('.att-add'):null;
+        if(addBtn) addBtn.style.pointerEvents='none';
+        try{
+          for(var i=0;i<files.length;i++){
+            if(addBtn) addBtn.firstChild && (addBtn.childNodes[0].nodeValue='กำลังอัพโหลด '+(i+1)+'/'+files.length+'…');
+            await uploadOneAttachment(lid,files[i]);
+          }
+          await loadLessonList();
+        }catch(e){ alert('แนบไฟล์ไม่สำเร็จ: '+(e.message||e)); if(addBtn){ addBtn.style.pointerEvents=''; } }
       });
     });
   }
@@ -362,60 +460,108 @@
     renderLessonList((r.body&&r.body.lessons)||[]);
   }
 
-  // Upload via XHR to the signed URL (gives a progress bar). Returns a rejected
-  // promise on any failure so the caller can fall back to the supabase-js client.
-  function uploadXHR(signedUrl, path, token, file){
+  // Generic signed-URL upload with XHR (progress) + supabase-js fallback.
+  // bucket is 'lessons' or 'attachments'. onProg(0..100) optional.
+  function uploadToSigned(bucket, signedUrl, path, token, file, onProg){
     return new Promise(function(resolve,reject){
       var url = (signedUrl && /^https?:/.test(signedUrl))
         ? signedUrl
-        : cfg.SUPABASE_URL + '/storage/v1' + (signedUrl && signedUrl.charAt(0)==='/' ? signedUrl : '/object/upload/sign/lessons/'+path+'?token='+encodeURIComponent(token));
+        : cfg.SUPABASE_URL + '/storage/v1' + (signedUrl && signedUrl.charAt(0)==='/' ? signedUrl : '/object/upload/sign/'+bucket+'/'+path+'?token='+encodeURIComponent(token));
       var xhr=new XMLHttpRequest();
       xhr.open('PUT',url,true);
-      xhr.setRequestHeader('Content-Type',file.type||'video/mp4');
+      xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
       xhr.setRequestHeader('x-upsert','true');
-      xhr.upload.onprogress=function(e){ if(e.lengthComputable) setBar(Math.round(e.loaded/e.total*100)); };
+      xhr.upload.onprogress=function(e){ if(e.lengthComputable&&onProg) onProg(Math.round(e.loaded/e.total*100)); };
       xhr.onload=function(){ (xhr.status>=200&&xhr.status<300)?resolve():reject(new Error('HTTP '+xhr.status+' '+String(xhr.responseText||'').slice(0,140))); };
       xhr.onerror=function(){ reject(new Error('network/CORS')); };
       xhr.send(file);
     });
   }
+  // Upload a single attachment file and save its DB row, for a given lesson.
+  async function uploadOneAttachment(lessonId, file){
+    var r=await api('create_attachment_upload',{filename:file.name});
+    if(r.body.result!=='ok') throw new Error(r.body.detail||'ขอ URL ไม่สำเร็จ');
+    try{
+      await uploadToSigned('attachments', r.body.signedUrl, r.body.path, r.body.token, file, null);
+    }catch(xhrErr){
+      var up=await A.getClient().storage.from('attachments')
+        .uploadToSignedUrl(r.body.path, r.body.token, file, { contentType:file.type||'application/octet-stream', upsert:true });
+      if(up.error) throw new Error(up.error.message);
+    }
+    var s=await api('save_attachment',{lesson_id:lessonId,title:file.name,storage_path:r.body.path,mime:file.type||null,size_bytes:file.size||null});
+    if(s.body.result!=='ok') throw new Error(s.body.detail||s.body.result||'บันทึกไฟล์แนบไม่สำเร็จ');
+  }
+
   async function uploadLesson(){
     var title=($('les-title').value||'').trim();
     var titleEn=($('les-title-en').value||'').trim();
+    var isIntro=$('les-intro').checked;
+    var content=($('les-content').value||'').trim();
     var file=$('les-file').files[0];
+    var attachFiles=$('les-attach').files;
     if(!title){ lmsg('err','กรุณากรอกชื่อบทเรียน'); return; }
-    if(!file){ lmsg('err','กรุณาเลือกไฟล์วิดีโอ'); return; }
+    if(lesKind==='video' && !file){ lmsg('err','กรุณาเลือกไฟล์วิดีโอ'); return; }
+    if(lesKind==='article' && !content){ lmsg('err','กรุณาใส่เนื้อหาบทความ'); return; }
     var btn=$('btn-upload'); btn.disabled=true; var t=btn.textContent;
-    $('up-progress').style.display='block'; setBar(0); lmsg('','');
+    $('up-progress').style.display=(lesKind==='video')?'block':'none'; setBar(0); lmsg('','');
     try{
-      btn.textContent='กำลังเตรียม…';
-      var r=await api('create_lesson_upload',{filename:file.name});
-      if(r.body.result!=='ok') throw new Error('ขอ URL อัพโหลดไม่สำเร็จ ('+(r.body.detail||('HTTP '+r.status))+')');
-      btn.textContent='กำลังอัพโหลด…';
-      // Try XHR (progress bar) first; if it fails (e.g. CORS), use the official client.
-      try {
-        await uploadXHR(r.body.signedUrl, r.body.path, r.body.token, file);
-      } catch (xhrErr) {
-        btn.textContent='กำลังอัพโหลด (วิธีสำรอง)…'; setBar(0);
-        var up = await A.getClient().storage.from('lessons')
-          .uploadToSignedUrl(r.body.path, r.body.token, file, { contentType: file.type||'video/mp4', upsert:true });
-        if (up.error) throw new Error('อัพโหลดไฟล์ไม่สำเร็จ: '+up.error.message+' (XHR: '+(xhrErr.message||xhrErr)+')');
-        setBar(100);
+      var payload={ title:title, title_en:titleEn, kind:lesKind, is_intro:isIntro };
+
+      if(lesKind==='video'){
+        btn.textContent='กำลังเตรียม…';
+        var r=await api('create_lesson_upload',{filename:file.name});
+        if(r.body.result!=='ok') throw new Error('ขอ URL อัพโหลดไม่สำเร็จ ('+(r.body.detail||('HTTP '+r.status))+')');
+        btn.textContent='กำลังอัพโหลดวิดีโอ…';
+        try {
+          await uploadToSigned('lessons', r.body.signedUrl, r.body.path, r.body.token, file, setBar);
+        } catch (xhrErr) {
+          btn.textContent='กำลังอัพโหลด (วิธีสำรอง)…'; setBar(0);
+          var up = await A.getClient().storage.from('lessons')
+            .uploadToSignedUrl(r.body.path, r.body.token, file, { contentType: file.type||'video/mp4', upsert:true });
+          if (up.error) throw new Error('อัพโหลดไฟล์ไม่สำเร็จ: '+up.error.message+' (XHR: '+(xhrErr.message||xhrErr)+')');
+          setBar(100);
+        }
+        payload.storage_path=r.body.path;
+      } else {
+        payload.content=content;
       }
+
       btn.textContent='กำลังบันทึก…';
-      var s=await api('save_lesson',{title:title,title_en:titleEn,storage_path:r.body.path});
+      var s=await api('save_lesson',payload);
       if(s.body.result!=='ok') throw new Error('บันทึกบทเรียนไม่สำเร็จ ('+(s.body.detail||s.body.result||'')+')');
-      lmsg('ok','✓ เพิ่มบทเรียน "'+title+'" เรียบร้อยแล้ว — ขึ้นในหน้าเรียนแล้ว');
-      $('les-title').value=''; $('les-title-en').value=''; $('les-file').value='';
+      var newId=s.body.lesson&&s.body.lesson.id;
+
+      // Upload any chosen attachments against the new lesson.
+      if(newId && attachFiles && attachFiles.length){
+        for(var i=0;i<attachFiles.length;i++){
+          btn.textContent='กำลังแนบไฟล์ '+(i+1)+'/'+attachFiles.length+'…';
+          await uploadOneAttachment(newId, attachFiles[i]);
+        }
+      }
+
+      lmsg('ok','✓ บันทึกบทเรียน "'+title+'" เรียบร้อยแล้ว — ขึ้นในหน้าเรียนแล้ว');
+      $('les-title').value=''; $('les-title-en').value=''; $('les-content').value='';
+      $('les-intro').checked=false; if($('les-file')) $('les-file').value=''; $('les-attach').value='';
       await loadLessonList();
     }catch(e){
-      lmsg('err','อัพโหลดไม่สำเร็จ: '+(e.message||e));
+      lmsg('err','บันทึกไม่สำเร็จ: '+(e.message||e));
     }finally{
       btn.disabled=false; btn.textContent=t;
       setTimeout(function(){ $('up-progress').style.display='none'; setBar(0); },900);
     }
   }
+  function setKind(k){
+    lesKind=k;
+    Array.prototype.forEach.call($('les-kind-seg').querySelectorAll('.seg-btn'),function(b){
+      b.classList.toggle('active', b.getAttribute('data-kind')===k);
+    });
+    $('les-video-fields').hidden=(k!=='video');
+    $('les-article-fields').hidden=(k!=='article');
+  }
   function bindLessons(){
+    Array.prototype.forEach.call($('les-kind-seg').querySelectorAll('.seg-btn'),function(b){
+      b.addEventListener('click',function(){ setKind(b.getAttribute('data-kind')); });
+    });
     $('btn-upload').addEventListener('click',uploadLesson);
     $('btn-les-reload').addEventListener('click',loadLessonList);
   }

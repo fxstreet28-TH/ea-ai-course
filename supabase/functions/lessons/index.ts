@@ -43,9 +43,12 @@ Deno.serve(async (req) => {
 
   // Published lessons, ordered.
   const { data: rows } = await admin.from("lessons")
-    .select("id,position,title,title_en,description,storage_path,external_url,poster_url")
+    .select("id,position,title,title_en,description,storage_path,external_url,poster_url,kind,content,is_intro")
     .eq("is_published", true)
     .order("position", { ascending: true }).order("created_at", { ascending: true });
+
+  const { data: atts } = await admin.from("lesson_attachments")
+    .select("*").order("position", { ascending: true }).order("created_at", { ascending: true });
 
   const lessons: any[] = [];
   for (const l of rows || []) {
@@ -54,10 +57,16 @@ Deno.serve(async (req) => {
       const s = await admin.storage.from("lessons").createSignedUrl(l.storage_path, PLAYBACK_TTL);
       url = s.data?.signedUrl || null;
     }
+    const myAtts: any[] = [];
+    for (const a of (atts || []).filter((x: any) => x.lesson_id === l.id)) {
+      const sa = await admin.storage.from("attachments").createSignedUrl(a.storage_path, PLAYBACK_TTL);
+      myAtts.push({ title: a.title, mime: a.mime, size_bytes: a.size_bytes, url: sa.data?.signedUrl || null });
+    }
     lessons.push({
       id: l.id, position: l.position, title: l.title,
       title_en: l.title_en, description: l.description,
-      poster_url: l.poster_url, url,
+      kind: l.kind || "video", content: l.content || null, is_intro: !!l.is_intro,
+      poster_url: l.poster_url, url, attachments: myAtts,
     });
   }
 
