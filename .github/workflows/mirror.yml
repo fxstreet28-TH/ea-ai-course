@@ -1,0 +1,25 @@
+# Auto-mirror this repo to GitLab and/or Bitbucket on every push.
+# Runs on GitHub's runners (which can reach GitLab/Bitbucket).
+# Add repo secrets (Settings -> Secrets and variables -> Actions):
+#   GITLAB_MIRROR_URL    e.g. https://oauth2:<GITLAB_TOKEN>@gitlab.com/<user>/<repo>.git
+#   BITBUCKET_MIRROR_URL e.g. https://<user>:<APP_PASSWORD>@bitbucket.org/<workspace>/<repo>.git
+# Leave a secret unset to skip that destination.
+name: Mirror to GitLab & Bitbucket
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror push
+        env:
+          GITLAB_URL: ${{ secrets.GITLAB_MIRROR_URL }}
+          BITBUCKET_URL: ${{ secrets.BITBUCKET_MIRROR_URL }}
+          SRC: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        run: |
+          set -e
+          git clone --mirror "$SRC" repo.git
+          cd repo.git
+          if [ -n "$GITLAB_URL" ]; then echo "→ pushing to GitLab";    git push --mirror "$GITLAB_URL"; else echo "GITLAB_MIRROR_URL not set — skip"; fi
+          if [ -n "$BITBUCKET_URL" ]; then echo "→ pushing to Bitbucket"; git push --mirror "$BITBUCKET_URL"; else echo "BITBUCKET_MIRROR_URL not set — skip"; fi
