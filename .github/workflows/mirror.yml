@@ -12,7 +12,8 @@ jobs:
       - name: Mirror push
         env:
           GITLAB_URL: ${{ secrets.GITLAB_MIRROR_URL }}
-          BITBUCKET_URL: ${{ secrets.BITBUCKET_MIRROR_URL }}
+          BITBUCKET_SSH_KEY: ${{ secrets.BITBUCKET_SSH_KEY }}
+          BITBUCKET_SSH_REMOTE: git@bitbucket.org:aurumworkspace/ea-ai-course.git
           SRC: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           GH: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -22,26 +23,24 @@ jobs:
           echo "mirror run $(date -u)" >> status.txt
           git clone --mirror "$SRC" repo.git
           cd repo.git
+
           if [ -n "$GITLAB_URL" ]; then
             out=$(git push --mirror "$GITLAB_URL" 2>&1); rc=$?
             { echo "== GitLab (rc=$rc) =="; echo "$out"; } >> ../status.txt
           fi
-          if [ -n "$BITBUCKET_URL" ]; then
-            rest=${BITBUCKET_URL#https://x-token-auth:}
-            BB_TOKEN=${rest%@*}
-            BB_PATH=${rest##*@}
-            BB_HTTPS="https://$BB_PATH"
-            enc=$(printf '%s' "$BB_TOKEN" | sed 's/=/%3D/g')
-            echo "== Bitbucket diag token_len=${#BB_TOKEN} last4=${BB_TOKEN: -4} path=$BB_PATH ==" >> ../status.txt
-            # v1: URL raw token
-            o=$(git push --mirror "https://x-token-auth:${BB_TOKEN}@${BB_PATH}" 2>&1); echo "v1 url-raw rc=$? -> $(echo "$o"|tail -1)" >> ../status.txt
-            # v2: URL with =%3D encoded
-            o=$(git push --mirror "https://x-token-auth:${enc}@${BB_PATH}" 2>&1); echo "v2 url-enc rc=$? -> $(echo "$o"|tail -1)" >> ../status.txt
-            # v3: header Basic
-            o=$(git -c http.extraHeader="Authorization: Basic $(printf 'x-token-auth:%s' "$BB_TOKEN"|base64 -w0)" push --mirror "$BB_HTTPS" 2>&1); echo "v3 hdr-basic rc=$? -> $(echo "$o"|tail -1)" >> ../status.txt
-            # v4: header Bearer
-            o=$(git -c http.extraHeader="Authorization: Bearer ${BB_TOKEN}" push --mirror "$BB_HTTPS" 2>&1); echo "v4 hdr-bearer rc=$? -> $(echo "$o"|tail -1)" >> ../status.txt
+
+          if [ -n "$BITBUCKET_SSH_KEY" ]; then
+            mkdir -p ~/.ssh
+            printf '%s\n' "$BITBUCKET_SSH_KEY" > ~/.ssh/id_bb
+            chmod 600 ~/.ssh/id_bb
+            ssh-keyscan -t ed25519,rsa bitbucket.org >> ~/.ssh/known_hosts 2>/dev/null
+            export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_bb -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+            out=$(git push --mirror "$BITBUCKET_SSH_REMOTE" 2>&1); rc=$?
+            { echo "== Bitbucket SSH (rc=$rc) =="; echo "$out"; } >> ../status.txt
+          else
+            echo "== Bitbucket: skipped (no BITBUCKET_SSH_KEY) ==" >> ../status.txt
           fi
+
           cd ..
           cat status.txt
           content=$(base64 -w0 status.txt)
