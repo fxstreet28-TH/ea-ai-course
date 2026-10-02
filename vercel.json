@@ -1,0 +1,10 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "admin.longlearndo.com" }],
+      "destination": "/admin.html",
+      "permanent": false
+    }
+  ]
+}
