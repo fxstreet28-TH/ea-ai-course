@@ -3,8 +3,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-permissions:
-  contents: write
 jobs:
   mirror:
     runs-on: ubuntu-latest
@@ -15,38 +13,23 @@ jobs:
           BITBUCKET_SSH_KEY: ${{ secrets.BITBUCKET_SSH_KEY }}
           BITBUCKET_SSH_REMOTE: git@bitbucket.org:aurumworkspace/ea-ai-course.git
           SRC: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          GH: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
         run: |
           set +e
-          : > status.txt
-          echo "mirror run $(date -u)" >> status.txt
           git clone --mirror "$SRC" repo.git
           cd repo.git
-
+          fail=0
           if [ -n "$GITLAB_URL" ]; then
-            out=$(git push --mirror "$GITLAB_URL" 2>&1); rc=$?
-            { echo "== GitLab (rc=$rc) =="; echo "$out"; } >> ../status.txt
-          fi
-
+            echo "=== pushing to GitLab ==="
+            if git push --mirror "$GITLAB_URL"; then echo "GitLab: OK"; else echo "GitLab: FAILED"; fail=1; fi
+          else echo "GitLab: skipped (no GITLAB_MIRROR_URL)"; fi
           if [ -n "$BITBUCKET_SSH_KEY" ]; then
+            echo "=== pushing to Bitbucket (SSH) ==="
             mkdir -p ~/.ssh
             printf '%s\n' "$BITBUCKET_SSH_KEY" > ~/.ssh/id_bb
             chmod 600 ~/.ssh/id_bb
             ssh-keyscan -t ed25519,rsa bitbucket.org >> ~/.ssh/known_hosts 2>/dev/null
             export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_bb -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-            out=$(git push --mirror "$BITBUCKET_SSH_REMOTE" 2>&1); rc=$?
-            { echo "== Bitbucket SSH (rc=$rc) =="; echo "$out"; } >> ../status.txt
-          else
-            echo "== Bitbucket: skipped (no BITBUCKET_SSH_KEY) ==" >> ../status.txt
-          fi
-
-          cd ..
-          cat status.txt
-          content=$(base64 -w0 status.txt)
-          sha=$(curl -s -H "Authorization: Bearer $GH" "https://api.github.com/repos/$REPO/contents/mirror-status.txt?ref=main" | python3 -c "import sys,json;print(json.load(sys.stdin).get('sha',''))" 2>/dev/null)
-          body="{\"message\":\"chore: mirror status [skip ci]\",\"content\":\"$content\",\"branch\":\"main\""
-          [ -n "$sha" ] && body="$body,\"sha\":\"$sha\""
-          body="$body}"
-          curl -s -X PUT -H "Authorization: Bearer $GH" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/contents/mirror-status.txt" -d "$body" >/dev/null
-          echo "status written"
+            if git push --mirror "$BITBUCKET_SSH_REMOTE"; then echo "Bitbucket: OK"; else echo "Bitbucket: FAILED"; fail=1; fi
+          else echo "Bitbucket: skipped (no BITBUCKET_SSH_KEY)"; fi
+          echo "=== done (fail=$fail) ==="
+          exit $fail
