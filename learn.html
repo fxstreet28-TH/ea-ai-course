@@ -15,7 +15,8 @@
 
   .stage-card{background:linear-gradient(160deg,#15173a 0%,var(--panel) 55%);border:1px solid var(--line);border-radius:18px;padding:22px 22px 24px;box-shadow:0 20px 60px #00000055}
   .stage-kicker{margin-bottom:12px}
-  .stage-title{font-size:clamp(19px,2.2vw,25px);margin:0 0 16px;line-height:1.4}
+  .stage-title{font-size:clamp(19px,2.2vw,25px);margin:0 0 10px;line-height:1.4}
+  .stage-desc{color:var(--muted);font-size:14.5px;line-height:1.75;margin:0 0 16px;white-space:pre-wrap}
   .video-frame{border-radius:14px;overflow:hidden;border:1px solid var(--line);box-shadow:0 24px 70px #00000075;background:#000}
 
   .article-body{color:#e9ebff;font-size:16px;line-height:1.95;max-width:none}
@@ -130,6 +131,7 @@
           <div id="lesson-stage" class="stage-card">
             <div class="stage-kicker"><span id="lesson-kicker" class="eyebrow en" style="margin:0">LESSON</span></div>
             <h3 id="lesson-title" class="stage-title">กำลังโหลดบทเรียน…</h3>
+            <p id="lesson-desc" class="stage-desc" hidden></p>
 
             <!-- Video mode -->
             <div id="stage-video-wrap" class="video-frame">
@@ -372,6 +374,9 @@
                             : ('บทที่ ' + ls.no + ' · ' + (ls.en||'LESSON').toUpperCase());
       $('lesson-kicker').textContent = kick;
 
+      var dEl=$('lesson-desc'), dTxt=(ls.description||'').trim();
+      if(dTxt){ dEl.textContent=dTxt; dEl.hidden=false; } else { dEl.textContent=''; dEl.hidden=true; }
+
       if(ls.kind==='article'){
         $('stage-video-wrap').hidden = true;
         try{ lv.pause(); }catch(e){}
@@ -472,6 +477,7 @@
               kind: r.kind==='article' ? 'article' : 'video',
               title: r.title,
               en: r.title_en || '',
+              description: r.description || '',
               src: r.url || null,
               content: r.content || '',
               poster: r.poster_url || '',

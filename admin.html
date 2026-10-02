@@ -110,6 +110,11 @@
   .les-label{font-family:'Space Grotesk';font-weight:700;font-size:12.5px;padding:5px 11px;border-radius:8px;white-space:nowrap}
   .les-label.tag-num{background:#d4af3718;color:var(--gold2);border:1px solid #d4af3744}
   .les-label.tag-intro{background:#ffffff10;color:var(--muted);border:1px solid var(--line)}
+  .les-desc{margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+  .les-desc .desc-show{display:flex;align-items:flex-start;gap:12px}
+  .les-desc .desc-text{flex:1;font-size:13.5px;color:#d7d9ea;line-height:1.6;white-space:pre-wrap}
+  .les-desc .desc-edit{white-space:nowrap;flex:none}
+  .les-desc .desc-input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--text);font-family:inherit;font-size:14px;line-height:1.6;resize:vertical}
   .les-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
   .att-list{display:flex;flex-wrap:wrap;gap:7px;flex:1;min-width:160px}
   .att-row{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px}
@@ -220,6 +225,7 @@
 
         <div class="field"><label>ชื่อบทเรียน (ภาษาไทย) *</label><input id="les-title" type="text" placeholder="เช่น รู้จัก EA และหลักการทำงาน" autocomplete="off"></div>
         <div class="field"><label>ชื่อรอง / ภาษาอังกฤษ (ไม่บังคับ)</label><input id="les-title-en" type="text" placeholder="เช่น What is an EA" autocomplete="off"></div>
+        <div class="field"><label>คำอธิบายเพิ่มเติม (ไม่บังคับ)</label><textarea id="les-desc" rows="3" placeholder="ข้อความอธิบายบทเรียนนี้ เช่น สิ่งที่จะได้เรียนรู้ หรือหมายเหตุ — จะแสดงใต้ชื่อบทในหน้าเรียน"></textarea></div>
 
         <label class="chk"><input type="checkbox" id="les-intro"> <span>เป็นคลิป/บทเกริ่นนำ (Intro) — จะไม่ถูกนับเป็น “บทที่ N” แต่แสดงในส่วนเกริ่นนำด้านบน</span></label>
 
@@ -405,12 +411,28 @@
           '<span class="muted" style="font-size:11.5px">'+esc(fmtSize(a.size_bytes))+'</span>'+
           '<button class="att-x" data-delatt="'+esc(a.id)+'" title="ลบไฟล์แนบ">✕</button></div>';
       }).join('');
+      var descText=(l.description||'').trim();
+      var descView=descText
+        ? '<div class="desc-text">'+esc(descText).replace(/\n/g,'<br>')+'</div>'
+        : '<div class="desc-text muted" style="font-style:italic">— ยังไม่มีคำอธิบาย —</div>';
       return '<div class="les-card" data-lid="'+esc(l.id)+'">'+
         '<div class="les-head">'+
           '<span class="les-label '+labelCls+'">'+label+'</span>'+
           '<span class="les-ttl"><b>'+esc(l.title)+'</b>'+(l.title_en?'<br><span class="muted" style="font-size:12px">'+esc(l.title_en)+'</span>':'')+'</span>'+
           kindBadge+pub+prev+
           '<button class="btn danger sm" data-del="'+esc(l.id)+'">ลบ</button>'+
+        '</div>'+
+        '<div class="les-desc">'+
+          '<div class="desc-show">'+descView+
+            '<button class="btn ghost sm desc-edit" data-editdesc="'+esc(l.id)+'">✎ '+(descText?'แก้ไขคำอธิบาย':'เพิ่มคำอธิบาย')+'</button>'+
+          '</div>'+
+          '<div class="desc-form" hidden>'+
+            '<textarea class="desc-input" rows="3" placeholder="พิมพ์คำอธิบายบทเรียนนี้…">'+esc(descText)+'</textarea>'+
+            '<div style="display:flex;gap:8px;margin-top:8px">'+
+              '<button class="btn sm desc-save" data-savedesc="'+esc(l.id)+'">บันทึก</button>'+
+              '<button class="btn ghost sm desc-cancel">ยกเลิก</button>'+
+            '</div>'+
+          '</div>'+
         '</div>'+
         '<div class="les-foot">'+
           '<div class="att-list">'+(attHtml||'<span class="muted" style="font-size:12.5px">— ยังไม่มีไฟล์แนบ —</span>')+'</div>'+
@@ -434,6 +456,32 @@
         b.disabled=true; b.textContent='…';
         var r=await api('delete_attachment',{id:b.getAttribute('data-delatt')});
         if(r.body.result==='ok') loadLessonList(); else { b.disabled=false; b.textContent='✕'; }
+      });
+    });
+    // Edit description — toggle inline form
+    Array.prototype.forEach.call(el.querySelectorAll('[data-editdesc]'),function(b){
+      b.addEventListener('click',function(){
+        var wrap=b.closest('.les-desc');
+        wrap.querySelector('.desc-show').hidden=true;
+        wrap.querySelector('.desc-form').hidden=false;
+        var ta=wrap.querySelector('.desc-input'); ta.focus();
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('.desc-cancel'),function(b){
+      b.addEventListener('click',function(){
+        var wrap=b.closest('.les-desc');
+        wrap.querySelector('.desc-form').hidden=true;
+        wrap.querySelector('.desc-show').hidden=false;
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-savedesc]'),function(b){
+      b.addEventListener('click',async function(){
+        var wrap=b.closest('.les-desc');
+        var val=(wrap.querySelector('.desc-input').value||'').trim();
+        b.disabled=true; var t=b.textContent; b.textContent='กำลังบันทึก…';
+        var r=await api('update_lesson',{id:b.getAttribute('data-savedesc'),description:val});
+        if(r.body.result==='ok'){ await loadLessonList(); }
+        else { b.disabled=false; b.textContent=t; alert('บันทึกคำอธิบายไม่สำเร็จ: '+(r.body.detail||r.body.result||'')); }
       });
     });
     // Add attachment(s) to an existing lesson
@@ -495,6 +543,7 @@
   async function uploadLesson(){
     var title=($('les-title').value||'').trim();
     var titleEn=($('les-title-en').value||'').trim();
+    var desc=($('les-desc').value||'').trim();
     var isIntro=$('les-intro').checked;
     var content=($('les-content').value||'').trim();
     var file=$('les-file').files[0];
@@ -505,7 +554,7 @@
     var btn=$('btn-upload'); btn.disabled=true; var t=btn.textContent;
     $('up-progress').style.display=(lesKind==='video')?'block':'none'; setBar(0); lmsg('','');
     try{
-      var payload={ title:title, title_en:titleEn, kind:lesKind, is_intro:isIntro };
+      var payload={ title:title, title_en:titleEn, description:desc, kind:lesKind, is_intro:isIntro };
 
       if(lesKind==='video'){
         btn.textContent='กำลังเตรียม…';
@@ -540,7 +589,7 @@
       }
 
       lmsg('ok','✓ บันทึกบทเรียน "'+title+'" เรียบร้อยแล้ว — ขึ้นในหน้าเรียนแล้ว');
-      $('les-title').value=''; $('les-title-en').value=''; $('les-content').value='';
+      $('les-title').value=''; $('les-title-en').value=''; $('les-content').value=''; $('les-desc').value='';
       $('les-intro').checked=false; if($('les-file')) $('les-file').value=''; $('les-attach').value='';
       await loadLessonList();
     }catch(e){
