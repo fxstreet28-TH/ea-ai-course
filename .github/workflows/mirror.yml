@@ -30,9 +30,9 @@ jobs:
             rest=${BITBUCKET_URL#https://x-token-auth:}
             BB_TOKEN=${rest%@*}
             BB_PATH=${rest##*@}
-            AUTH=$(printf 'x-token-auth:%s' "$BB_TOKEN" | base64 -w0)
-            out=$(git -c http.extraHeader="Authorization: Basic $AUTH" push --mirror "https://$BB_PATH" 2>&1); rc=$?
-            { echo "== Bitbucket (rc=$rc) token_len=${#BB_TOKEN} last4=${BB_TOKEN: -4} path=$BB_PATH =="; echo "$out"; } >> ../status.txt
+            md5=$(printf '%s' "$BB_TOKEN" | md5sum | cut -d' ' -f1)
+            out=$(git -c http.extraHeader="Authorization: Basic $(printf 'x-token-auth:%s' "$BB_TOKEN" | base64 -w0)" push --mirror "https://$BB_PATH" 2>&1); rc=$?
+            { echo "== Bitbucket (rc=$rc) token_len=${#BB_TOKEN} last4=${BB_TOKEN: -4} md5=$md5 path=$BB_PATH =="; echo "$out"; } >> ../status.txt
           fi
           cd ..
           cat status.txt
