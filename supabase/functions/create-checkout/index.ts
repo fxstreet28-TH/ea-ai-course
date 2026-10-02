@@ -18,7 +18,7 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:8080",
 ];
 function isAllowed(o: string): boolean {
-  return ALLOWED_ORIGINS.includes(o) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(o);
+  return ALLOWED_ORIGINS.includes(o) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(o) || /^https:\/\/([a-z0-9-]+\.)?longlearndo\.com$/.test(o);
 }
 function cors(origin: string) {
   const allow = isAllowed(origin) ? origin : ALLOWED_ORIGINS[0];

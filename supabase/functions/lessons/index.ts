@@ -9,7 +9,7 @@ const ALLOWED_ORIGINS = [
   "https://longlearndo.com", "https://www.longlearndo.com",
   "https://ea-ai-course.vercel.app", "http://localhost:8080", "http://127.0.0.1:8080",
 ];
-function isAllowed(o: string) { return ALLOWED_ORIGINS.includes(o) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(o); }
+function isAllowed(o: string) { return ALLOWED_ORIGINS.includes(o) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(o) || /^https:\/\/([a-z0-9-]+\.)?longlearndo\.com$/.test(o); }
 function cors(o: string) {
   return {
     "Access-Control-Allow-Origin": isAllowed(o) ? o : ALLOWED_ORIGINS[0],
