@@ -21,6 +21,8 @@
   .stage-desc p:last-child{margin-bottom:0}
   @media(max-width:600px){ .stage-desc p{font-size:16px} }
   .video-frame{border-radius:14px;overflow:hidden;border:1px solid var(--line);box-shadow:0 24px 70px #00000075;background:#000}
+  .embed-16x9{position:relative;width:100%;padding-top:56.25%;height:0}
+  .embed-16x9 iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
 
   .article-body{color:#e9ebff;font-size:16px;line-height:1.95;max-width:none}
   .article-body h4{font-family:'Space Grotesk',sans-serif;color:var(--gold);font-size:18px;margin:26px 0 8px}
@@ -142,6 +144,11 @@
                 <source src="" type="video/mp4">
                 เบราว์เซอร์ของคุณไม่รองรับวิดีโอ
               </video>
+            </div>
+
+            <!-- Stream mode (Bunny Stream iframe embed; built per lesson in openLesson) -->
+            <div id="stage-embed-wrap" class="video-frame" hidden>
+              <div id="stage-embed" class="embed-16x9"></div>
             </div>
 
             <!-- Article mode -->
@@ -386,10 +393,26 @@
         dEl.innerHTML=paras; dEl.hidden=false;
       } else { dEl.innerHTML=''; dEl.hidden=true; }
 
+      // Tear down both players first so switching never leaves audio playing.
+      try{ lv.pause(); }catch(e){}
+      clearEmbed();
+      var isStream = ls.kind!=='article' && ls.provider==='bunny' && ls.src;
       if(ls.kind==='article'){
         $('stage-video-wrap').hidden = true;
-        try{ lv.pause(); }catch(e){}
         var art=$('stage-article'); art.hidden=false; art.innerHTML=articleToHtml(ls.content);
+      } else if(isStream){
+        $('stage-article').hidden = true;
+        $('stage-video-wrap').hidden = true;
+        // Bunny Stream embed URL is an HTML page — must be an <iframe>, not <video src>.
+        var fr=document.createElement('iframe');
+        fr.setAttribute('src', ls.src);
+        fr.setAttribute('loading', 'lazy');
+        fr.setAttribute('allow', 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;');
+        fr.setAttribute('allowfullscreen', '');
+        fr.allowFullscreen = true;
+        fr.setAttribute('title', ls.title||'Lesson video');
+        $('stage-embed').appendChild(fr);
+        $('stage-embed-wrap').hidden = false;
       } else {
         $('stage-article').hidden = true;
         $('stage-video-wrap').hidden = false;
@@ -400,6 +423,13 @@
       Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function(el){
         el.classList.toggle('lesson-active', el.getAttribute('data-lesson')===String(ls.key));
       });
+    }
+
+    function clearEmbed(){
+      var box=$('stage-embed');
+      Array.prototype.forEach.call(box.querySelectorAll('iframe'), function(f){ try{ f.src='about:blank'; }catch(e){} });
+      box.innerHTML='';
+      $('stage-embed-wrap').hidden = true;
     }
 
     function itemHtml(ls){
@@ -488,6 +518,7 @@
               en: r.title_en || '',
               description: r.description || '',
               src: r.url || null,
+              provider: r.provider==='bunny' ? 'bunny' : 'file',
               content: r.content || '',
               poster: r.poster_url || '',
               attachments: r.attachments || []
