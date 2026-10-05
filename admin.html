@@ -163,6 +163,7 @@
       <button data-view="dashboard" class="active"><span class="ico">▦</span> Dashboard</button>
       <button data-view="customers"><span class="ico">◍</span> Customers</button>
       <button data-view="lessons"><span class="ico">▶</span> บทเรียน</button>
+      <button data-view="engagement"><span class="ico">📊</span> Engagement</button>
       <button data-view="addclass"><span class="ico">＋</span> Add Class</button>
     </nav>
     <div class="who">
@@ -286,6 +287,31 @@
         </p>
       </div>
     </section>
+
+    <!-- ENGAGEMENT -->
+    <section class="view" id="view-engagement">
+      <div class="top"><div><div class="eyebrow">ENGAGEMENT</div><h1>ช่องทางการเข้าชม</h1><p class="sub">ผู้เข้าชมเว็บมาจากแหล่งไหนบ้าง (referrer / UTM)</p></div></div>
+      <div class="toolbar">
+        <select class="search" id="eng-days" style="max-width:200px">
+          <option value="7">7 วันล่าสุด</option>
+          <option value="30" selected>30 วันล่าสุด</option>
+          <option value="90">90 วันล่าสุด</option>
+          <option value="365">1 ปีล่าสุด</option>
+        </select>
+        <button class="btn ghost sm" id="eng-reload">↻ รีเฟรช</button>
+      </div>
+      <div class="cards">
+        <div class="card"><div class="lbl">ยอดเข้าชม (ช่วงที่เลือก)</div><div class="val" id="eng-total">–</div><div class="note">ครั้งที่มีคนเข้าเว็บ</div></div>
+        <div class="card"><div class="lbl">ยอดเข้าชมทั้งหมด</div><div class="val gold" id="eng-alltime">–</div><div class="note">สะสมตั้งแต่เริ่มเก็บ</div></div>
+        <div class="card"><div class="lbl">จำนวนช่องทาง</div><div class="val green" id="eng-srccount">–</div><div class="note">แหล่งที่มาที่พบ</div></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>ช่องทาง</th><th>จำนวน</th><th style="width:90px">สัดส่วน</th></tr></thead>
+          <tbody id="eng-body"><tr><td colspan="3" class="empty">กำลังโหลด…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -356,6 +382,44 @@
     Array.prototype.forEach.call(document.querySelectorAll('.view'),function(s){ s.classList.toggle('active',s.id==='view-'+v); });
     if(v==='customers'&&!customers.length) loadCustomers();
     if(v==='lessons'&&!lessonsLoadedOnce){ lessonsLoadedOnce=true; loadLessonList(); }
+    if(v==='engagement') loadEngagement();
+  }
+
+  // ---------------- Engagement ----------------
+  function engApi(extra){
+    return fetch(cfg.SUPABASE_URL + '/functions/v1/admin-engagement', {
+      method:'POST',
+      headers:{ 'Authorization':'Bearer '+sessionToken, 'apikey':cfg.SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify(extra||{})
+    }).then(function(resp){ return resp.json().catch(function(){return {};}).then(function(b){ return {status:resp.status, body:b}; }); });
+  }
+  function srcLabel(s){
+    var m={ direct:'เข้าตรง (Direct)', google:'Google', facebook:'Facebook', instagram:'Instagram',
+            tiktok:'TikTok', youtube:'YouTube', twitter:'X / Twitter', line:'LINE', bing:'Bing',
+            internal:'ภายในเว็บ', referral:'เว็บอื่น (Referral)' };
+    return m[s] || s;
+  }
+  async function loadEngagement(){
+    var days=parseInt(($('eng-days')&&$('eng-days').value)||'30',10)||30;
+    $('eng-body').innerHTML='<tr><td colspan="3" class="empty">กำลังโหลด…</td></tr>';
+    var r=await engApi({days:days}); var d=(r&&r.body)||{};
+    $('eng-total').textContent   = d.total!=null ? Number(d.total).toLocaleString('th-TH') : '–';
+    $('eng-alltime').textContent = d.all_time!=null ? Number(d.all_time).toLocaleString('th-TH') : '–';
+    var srcs=d.sources||[];
+    $('eng-srccount').textContent = srcs.length;
+    if(!srcs.length){ $('eng-body').innerHTML='<tr><td colspan="3" class="empty">ยังไม่มีข้อมูลการเข้าชมในช่วงนี้</td></tr>'; return; }
+    var max=srcs[0].count||1;
+    $('eng-body').innerHTML=srcs.map(function(s){
+      var w=Math.round((s.count/max)*100);
+      return '<tr><td>'+esc(srcLabel(s.source))+'</td>'+
+        '<td class="mono">'+Number(s.count).toLocaleString('th-TH')+
+        '<div style="height:6px;margin-top:5px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+w+'%;background:#61e9ff"></div></div></td>'+
+        '<td class="muted">'+(s.pct!=null?s.pct:0)+'%</td></tr>';
+    }).join('');
+  }
+  function bindEngagement(){
+    var rb=$('eng-reload'); if(rb) rb.addEventListener('click', loadEngagement);
+    var ds=$('eng-days');   if(ds) ds.addEventListener('change', loadEngagement);
   }
 
   function gmsg(kind,text){ var m=$('grant-msg'); m.className='msg show '+kind; m.textContent=text; }
@@ -647,6 +711,7 @@
     $('btn-logout').addEventListener('click',async function(){ await A.signOut(); location.replace('/'); });
     bindAddClass();
     bindLessons();
+    bindEngagement();
   }
   main();
 })();
