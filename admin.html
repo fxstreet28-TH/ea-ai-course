@@ -311,6 +311,38 @@
           <tbody id="eng-body"><tr><td colspan="3" class="empty">กำลังโหลด…</td></tr></tbody>
         </table>
       </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+        <div class="panel-box" style="margin:0">
+          <h3 style="margin-top:0">📱 อุปกรณ์</h3>
+          <div class="tablewrap" style="margin-top:8px">
+            <table><thead><tr><th>อุปกรณ์</th><th>จำนวน</th><th style="width:70px">%</th></tr></thead>
+            <tbody id="eng-dev"><tr><td colspan="3" class="empty">—</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="panel-box" style="margin:0">
+          <h3 style="margin-top:0">🌍 ประเทศ</h3>
+          <div class="tablewrap" style="margin-top:8px">
+            <table><thead><tr><th>ประเทศ</th><th>จำนวน</th><th style="width:70px">%</th></tr></thead>
+            <tbody id="eng-country"><tr><td colspan="3" class="empty">—</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-box" style="margin-top:16px">
+        <h3 style="margin-top:0">🔎 เจาะ "เข้าตรง (Direct)" — <span id="eng-direct-total" class="muted" style="font-weight:400">—</span></h3>
+        <p class="desc">Direct ส่วนใหญ่คือคนกดลิงก์จากแอป (TikTok/FB/LINE) ที่ซ่อนที่มา — ดูอุปกรณ์กับประเทศช่วยเดาได้ว่าจริง ๆ มาจากไหน</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="tablewrap">
+            <table><thead><tr><th>อุปกรณ์ (ใน Direct)</th><th>จำนวน</th><th style="width:70px">%</th></tr></thead>
+            <tbody id="eng-direct-dev"><tr><td colspan="3" class="empty">—</td></tr></tbody></table>
+          </div>
+          <div class="tablewrap">
+            <table><thead><tr><th>ประเทศ (ใน Direct)</th><th>จำนวน</th><th style="width:70px">%</th></tr></thead>
+            <tbody id="eng-direct-country"><tr><td colspan="3" class="empty">—</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 </div>
@@ -399,6 +431,24 @@
             internal:'ภายในเว็บ', referral:'เว็บอื่น (Referral)' };
     return m[s] || s;
   }
+  function devLabel(d){
+    var m={ mobile:'📱 มือถือ', desktop:'💻 คอมพิวเตอร์', tablet:'📱 แท็บเล็ต', unknown:'ไม่ทราบ' };
+    return m[d] || d;
+  }
+  function ctryLabel(c){ return (!c || c==='unknown') ? 'ไม่ทราบตำแหน่ง' : c; }
+  // Render a count+bar table into tbody id, using `label` to format the key `field`.
+  function engRows(id, list, field, label){
+    var el=$(id); if(!el) return;
+    if(!list || !list.length){ el.innerHTML='<tr><td colspan="3" class="empty">—</td></tr>'; return; }
+    var max=list[0].count||1;
+    el.innerHTML=list.map(function(x){
+      var w=Math.round((x.count/max)*100);
+      return '<tr><td>'+esc(label(x[field]))+'</td>'+
+        '<td class="mono">'+Number(x.count).toLocaleString('th-TH')+
+        '<div style="height:6px;margin-top:5px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+w+'%;background:#61e9ff"></div></div></td>'+
+        '<td class="muted">'+(x.pct!=null?x.pct:0)+'%</td></tr>';
+    }).join('');
+  }
   async function loadEngagement(){
     var days=parseInt(($('eng-days')&&$('eng-days').value)||'30',10)||30;
     $('eng-body').innerHTML='<tr><td colspan="3" class="empty">กำลังโหลด…</td></tr>';
@@ -407,15 +457,18 @@
     $('eng-alltime').textContent = d.all_time!=null ? Number(d.all_time).toLocaleString('th-TH') : '–';
     var srcs=d.sources||[];
     $('eng-srccount').textContent = srcs.length;
-    if(!srcs.length){ $('eng-body').innerHTML='<tr><td colspan="3" class="empty">ยังไม่มีข้อมูลการเข้าชมในช่วงนี้</td></tr>'; return; }
-    var max=srcs[0].count||1;
-    $('eng-body').innerHTML=srcs.map(function(s){
-      var w=Math.round((s.count/max)*100);
-      return '<tr><td>'+esc(srcLabel(s.source))+'</td>'+
-        '<td class="mono">'+Number(s.count).toLocaleString('th-TH')+
-        '<div style="height:6px;margin-top:5px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+w+'%;background:#61e9ff"></div></div></td>'+
-        '<td class="muted">'+(s.pct!=null?s.pct:0)+'%</td></tr>';
-    }).join('');
+    if(!srcs.length){
+      $('eng-body').innerHTML='<tr><td colspan="3" class="empty">ยังไม่มีข้อมูลการเข้าชมในช่วงนี้</td></tr>';
+    } else {
+      engRows('eng-body', srcs, 'source', srcLabel);
+    }
+    engRows('eng-dev',     d.devices,   'device',  devLabel);
+    engRows('eng-country', d.countries, 'country', ctryLabel);
+
+    var dir=d.direct||{};
+    $('eng-direct-total').textContent = 'ทั้งหมด '+Number(dir.total||0).toLocaleString('th-TH')+' ครั้ง';
+    engRows('eng-direct-dev',     dir.devices,   'device',  devLabel);
+    engRows('eng-direct-country', dir.countries, 'country', ctryLabel);
   }
   function bindEngagement(){
     var rb=$('eng-reload'); if(rb) rb.addEventListener('click', loadEngagement);

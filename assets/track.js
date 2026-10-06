@@ -47,13 +47,14 @@
       user_agent: (navigator.userAgent || '').slice(0, 300)
     };
 
-    fetch(cfg.SUPABASE_URL + '/rest/v1/page_visits', {
+    // Send to the track-visit edge function so the server can add
+    // device (from UA) and approximate location (from the visitor IP).
+    fetch(cfg.SUPABASE_URL + '/functions/v1/track-visit', {
       method: 'POST',
       headers: {
         'apikey': cfg.SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + cfg.SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload),
       keepalive: true

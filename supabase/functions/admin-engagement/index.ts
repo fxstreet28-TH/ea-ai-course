@@ -54,22 +54,54 @@ Deno.serve(async (req) => {
     .select("id", { count: "exact", head: true });
 
   const { data: visits } = await admin.from("page_visits")
-    .select("source,created_at").gte("created_at", since).limit(100000);
+    .select("source,device,os,country,created_at").gte("created_at", since).limit(100000);
 
   const rows = visits || [];
   const bySrc: Record<string, number> = {};
   const byDay: Record<string, number> = {};
+  const byDev: Record<string, number> = {};
+  const byCountry: Record<string, number> = {};
+  // "Direct" slice broken down further, since direct is usually hidden social/app traffic.
+  const directDev: Record<string, number> = {};
+  const directCountry: Record<string, number> = {};
+  let directTotal = 0;
+
   for (const v of rows) {
     const s = (v.source || "direct").toLowerCase();
     bySrc[s] = (bySrc[s] || 0) + 1;
+
     const d = String(v.created_at || "").slice(0, 10);
     if (d) byDay[d] = (byDay[d] || 0) + 1;
+
+    const dev = (v.device || "unknown").toLowerCase();
+    byDev[dev] = (byDev[dev] || 0) + 1;
+
+    const ctry = v.country || "unknown";
+    byCountry[ctry] = (byCountry[ctry] || 0) + 1;
+
+    if (s === "direct") {
+      directTotal++;
+      directDev[dev] = (directDev[dev] || 0) + 1;
+      directCountry[ctry] = (directCountry[ctry] || 0) + 1;
+    }
   }
+
   const total = rows.length;
-  const sources = Object.keys(bySrc)
-    .map((k) => ({ source: k, count: bySrc[k], pct: total ? Math.round((bySrc[k] / total) * 100) : 0 }))
-    .sort((a, b) => b.count - a.count);
+  const pct = (n: number, base: number) => (base ? Math.round((n / base) * 100) : 0);
+  const toList = (obj: Record<string, number>, base: number, key: string) =>
+    Object.keys(obj).map((k) => ({ [key]: k, count: obj[k], pct: pct(obj[k], base) }))
+      .sort((a: any, b: any) => b.count - a.count);
+
+  const sources   = toList(bySrc, total, "source");
+  const devices   = toList(byDev, total, "device");
+  const countries = toList(byCountry, total, "country");
   const daily = Object.keys(byDay).sort().map((k) => ({ day: k, count: byDay[k] }));
 
-  return json({ days, total, all_time: allTime || 0, sources, daily }, 200, origin);
+  const direct = {
+    total: directTotal,
+    devices:   toList(directDev, directTotal, "device"),
+    countries: toList(directCountry, directTotal, "country"),
+  };
+
+  return json({ days, total, all_time: allTime || 0, sources, devices, countries, direct, daily }, 200, origin);
 });
