@@ -62,10 +62,14 @@
         <div class="field">
           <label for="signup-phone">เบอร์โทรศัพท์</label>
           <div style="display:flex;gap:8px">
-            <select id="signup-country" name="country" style="flex:0 0 auto;width:118px">
-              <option value="TH" selected>🇹🇭 +66</option>
-              <option value="LA">🇱🇦 +856</option>
-            </select>
+            <div style="flex:0 0 auto;display:flex;align-items:center;gap:7px;background:#080917;border:1px solid var(--line);border-radius:10px;padding:0 10px">
+              <img id="country-flag" src="https://flagcdn.com/w40/th.png" width="26" height="18" alt="" style="border-radius:2px;display:block">
+              <select id="signup-country" name="country" aria-label="รหัสประเทศ"
+                      style="background:transparent;border:0;color:var(--text);font:16px/1.4 'Noto Sans Thai',sans-serif;outline:none;padding:12px 2px 12px 0;cursor:pointer">
+                <option value="TH" selected>+66</option>
+                <option value="LA">+856</option>
+              </select>
+            </div>
             <input type="tel" id="signup-phone" name="phone" autocomplete="tel" inputmode="tel" placeholder="0812345678" required style="flex:1">
           </div>
           <div class="hint">เบอร์มือถือ (ไทย/ลาว) — ใส่ 0 นำหน้าหรือไม่ก็ได้ ระบบแปลงให้อัตโนมัติ · ใช้รับรหัส OTP</div>
@@ -244,6 +248,16 @@
       b.setAttribute('aria-label', show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน');
     });
   });
+
+  // ---- country flag swap ----
+  (function () {
+    var sel = $('signup-country'), flag = $('country-flag');
+    if (!sel || !flag) return;
+    var FLAG = { TH: 'th', LA: 'la' };
+    sel.addEventListener('change', function () {
+      flag.src = 'https://flagcdn.com/w40/' + (FLAG[sel.value] || 'th') + '.png';
+    });
+  })();
 
   // ---- resend with 60s cooldown ----
   var cooldownTimer = null;
