@@ -193,6 +193,26 @@
     return res.data;
   }
 
+  // --- Phone OTP (SMS via Movider) ---
+  // Send a one-time code to the phone. Returns the parsed JSON body.
+  async function sendOtp(phone) {
+    var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/send-otp', {
+      method: 'POST',
+      headers: { 'apikey': cfg.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone })
+    });
+    return await resp.json().catch(function () { return {}; });
+  }
+  // Verify the code and create the account. payload: {phone,code,email,password,first_name,last_name}
+  async function verifyOtpSignup(payload) {
+    var resp = await fetch(cfg.SUPABASE_URL + '/functions/v1/verify-otp', {
+      method: 'POST',
+      headers: { 'apikey': cfg.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await resp.json().catch(function () { return {}; });
+  }
+
   async function signOut() {
     var c = getClient();
     if (c) { try { await c.auth.signOut(); } catch (e) { /* ignore — local session is cleared anyway */ } }
@@ -289,6 +309,8 @@
     resetPassword: resetPassword,
     updatePassword: updatePassword,
     resendConfirmation: resendConfirmation,
+    sendOtp: sendOtp,
+    verifyOtpSignup: verifyOtpSignup,
     signOut: signOut,
     onAuthStateChange: onAuthStateChange,
     updateNav: updateNav

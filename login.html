@@ -49,6 +49,21 @@
       </form>
 
       <form id="form-signup" role="tabpanel" aria-labelledby="tab-signup" novalidate hidden>
+        <div class="field" style="display:flex;gap:10px">
+          <div style="flex:1">
+            <label for="signup-first">ชื่อ</label>
+            <input type="text" id="signup-first" name="first_name" autocomplete="given-name" required>
+          </div>
+          <div style="flex:1">
+            <label for="signup-last">นามสกุล</label>
+            <input type="text" id="signup-last" name="last_name" autocomplete="family-name" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="signup-phone">เบอร์โทรศัพท์</label>
+          <input type="tel" id="signup-phone" name="phone" autocomplete="tel" inputmode="tel" placeholder="08x-xxx-xxxx" required>
+          <div class="hint">เบอร์มือถือไทย — ใช้รับรหัส OTP ยืนยันตัวตน</div>
+        </div>
         <div class="field">
           <label for="signup-email">อีเมล</label>
           <input type="email" id="signup-email" name="email" autocomplete="email" inputmode="email" required>
@@ -69,9 +84,33 @@
           </div>
         </div>
         <label class="check"><input type="checkbox" id="signup-terms" required> <span>ฉันยอมรับเงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว</span></label>
-        <button type="submit" class="btn block">สมัครสมาชิก</button>
+        <button type="submit" class="btn block">ถัดไป → ยืนยันเบอร์โทร</button>
         <div class="msg" id="signup-msg" role="alert" aria-live="polite"></div>
       </form>
+    </section>
+
+    <!-- OTP verification -->
+    <section id="view-otp" hidden>
+      <div style="text-align:center">
+        <div class="icon" aria-hidden="true">💬</div>
+        <h1>ยืนยันเบอร์โทรศัพท์</h1>
+        <p class="lead">เราส่งรหัส OTP 6 หลักไปที่ <strong id="otp-phone-label"></strong> ทาง SMS</p>
+      </div>
+      <form id="form-otp" novalidate>
+        <div class="field">
+          <label for="otp-code">รหัส OTP</label>
+          <input type="text" id="otp-code" name="otp" inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="6" placeholder="______"
+                 style="text-align:center;letter-spacing:10px;font-size:22px" required>
+        </div>
+        <button type="submit" class="btn block">ยืนยันและสมัครสมาชิก</button>
+        <div class="msg" id="otp-msg" role="alert" aria-live="polite"></div>
+      </form>
+      <div style="text-align:center;margin-top:12px">
+        <button type="button" class="link" id="otp-resend">ส่งรหัสใหม่</button>
+        <span id="otp-cooldown" class="hint" style="display:inline"></span>
+      </div>
+      <p class="foot-note"><button type="button" class="link" data-go="signup">← กลับไปแก้ไขข้อมูล</button></p>
     </section>
 
     <!-- signup success -->
@@ -171,6 +210,7 @@
     $('view-auth').hidden = !(view === 'login' || view === 'signup');
     $('view-sent').hidden = view !== 'sent';
     $('view-forgot').hidden = view !== 'forgot';
+    $('view-otp').hidden = view !== 'otp';
     if (view === 'login' || view === 'signup') {
       var isLogin = view === 'login';
       $('tab-login').setAttribute('aria-selected', String(isLogin));
@@ -201,15 +241,15 @@
 
   // ---- resend with 60s cooldown ----
   var cooldownTimer = null;
-  function startCooldown(btn, seconds) {
-    var label = 'ส่งอีเมลยืนยันอีกครั้ง';
+  function startCooldown(btn, seconds, label) {
+    label = label || 'ส่งอีเมลยืนยันอีกครั้ง';
     var left = seconds;
     btn.disabled = true;
     btn.textContent = label + ' (' + left + ' วิ)';
-    clearInterval(cooldownTimer);
-    cooldownTimer = setInterval(function () {
+    clearInterval(btn._cdTimer);
+    btn._cdTimer = setInterval(function () {
       left -= 1;
-      if (left <= 0) { clearInterval(cooldownTimer); btn.disabled = false; btn.textContent = label; }
+      if (left <= 0) { clearInterval(btn._cdTimer); btn.disabled = false; btn.textContent = label; }
       else btn.textContent = label + ' (' + left + ' วิ)';
     }, 1000);
   }
@@ -265,15 +305,43 @@
   });
   $('login-resend-btn').addEventListener('click', function () { resend(lastLoginEmail, this, $('login-msg')); });
 
-  // ---- signup ----
+  // ---- signup (step 1: collect info → send OTP) ----
   var signupEmail = '';
+  var pendingSignup = null;   // {first_name,last_name,phone,email,password}
+  var PHONE_RE = /^0[689]\d{8}$/;   // Thai mobile 0xx-xxx-xxxx
+
+  function cleanPhone(raw) { return String(raw || '').replace(/[^\d]/g, ''); }
+
+  function otpErrText(code) {
+    var m = {
+      bad_phone: 'เบอร์โทรไม่ถูกต้อง (ต้องเป็นมือถือไทย 10 หลัก)',
+      too_soon: 'เพิ่งส่งรหัสไป กรุณารอสักครู่แล้วลองใหม่',
+      too_many: 'ขอรหัสบ่อยเกินไป กรุณาลองใหม่ภายหลัง',
+      sms_failed: 'ส่ง SMS ไม่สำเร็จ กรุณาตรวจเบอร์แล้วลองใหม่',
+      store_failed: 'เกิดข้อผิดพลาด กรุณาลองใหม่',
+      otp_invalid: 'รหัส OTP ไม่ถูกต้อง',
+      otp_expired: 'รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่',
+      otp_locked: 'กรอกผิดหลายครั้งเกินไป กรุณาขอรหัสใหม่',
+      otp_not_found: 'ไม่พบรหัส OTP กรุณาขอรหัสใหม่',
+      email_exists: 'อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบ',
+      bad_email: 'รูปแบบอีเมลไม่ถูกต้อง',
+      signup_failed: 'สมัครไม่สำเร็จ กรุณาลองใหม่'
+    };
+    return m[code] || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+  }
+
   $('form-signup').addEventListener('submit', async function (ev) {
     ev.preventDefault();
     var btn = this.querySelector('[type=submit]');
     var msg = $('signup-msg');
+    var first = $('signup-first').value.trim();
+    var last = $('signup-last').value.trim();
+    var phone = cleanPhone($('signup-phone').value);
     var email = $('signup-email').value.trim();
     var pw = $('signup-password').value;
     var pw2 = $('signup-confirm').value;
+    if (!first || !last) return showMsg(msg, 'กรุณากรอกชื่อและนามสกุล');
+    if (!PHONE_RE.test(phone)) return showMsg(msg, 'เบอร์มือถือไม่ถูกต้อง (เช่น 0812345678)');
     if (!EMAIL_RE.test(email)) return showMsg(msg, 'รูปแบบอีเมลไม่ถูกต้อง');
     if (pw.length < 8) return showMsg(msg, 'รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร');
     if (pw !== pw2) return showMsg(msg, 'รหัสผ่านทั้งสองช่องไม่ตรงกัน');
@@ -281,18 +349,59 @@
     showMsg(msg, '');
     setBusy(btn, true);
     try {
-      var ct = await capToken();
-      var data = await A.signUpEmail(email, pw, ct);
-      if (data && data.session) { location.replace(next); return; } // "Confirm email" disabled
+      var r = await A.sendOtp(phone);
+      if (!r.ok) { showMsg(msg, otpErrText(r.error)); setBusy(btn, false); return; }
+      pendingSignup = { first_name: first, last_name: last, phone: phone, email: email, password: pw };
       signupEmail = email;
-      $('sent-email').textContent = email;
-      go('sent');
-      startCooldown($('btn-resend'), 60);
+      $('otp-phone-label').textContent = phone;
+      $('otp-code').value = '';
+      go('otp');
+      startCooldown($('otp-resend'), 60, 'ส่งรหัสใหม่');
     } catch (e) {
-      showMsg(msg, errText(e));
+      showMsg(msg, 'ส่งรหัสไม่สำเร็จ กรุณาลองใหม่');
     }
     setBusy(btn, false);
   });
+
+  // ---- signup (step 2: verify OTP → create account) ----
+  $('form-otp').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    if (!pendingSignup) { go('signup'); return; }
+    var btn = this.querySelector('[type=submit]');
+    var msg = $('otp-msg');
+    var code = cleanPhone($('otp-code').value);
+    if (!/^\d{6}$/.test(code)) return showMsg(msg, 'กรุณากรอกรหัส OTP 6 หลัก');
+    showMsg(msg, '');
+    setBusy(btn, true);
+    try {
+      var payload = Object.assign({ code: code }, pendingSignup);
+      var r = await A.verifyOtpSignup(payload);
+      if (r.ok) {
+        $('sent-email').textContent = signupEmail;
+        go('sent');
+        startCooldown($('btn-resend'), 60);
+        pendingSignup = null;
+      } else {
+        showMsg(msg, otpErrText(r.error));
+        setBusy(btn, false);
+      }
+    } catch (e) {
+      showMsg(msg, 'ยืนยันไม่สำเร็จ กรุณาลองใหม่');
+      setBusy(btn, false);
+    }
+  });
+
+  // resend OTP
+  $('otp-resend').addEventListener('click', async function () {
+    if (!pendingSignup) return;
+    var b = this;
+    showMsg($('otp-msg'), '');
+    b.disabled = true;
+    var r = await A.sendOtp(pendingSignup.phone);
+    if (r.ok) { showMsg($('otp-msg'), 'ส่งรหัสใหม่แล้ว', 'success'); startCooldown(b, 60, 'ส่งรหัสใหม่'); }
+    else { showMsg($('otp-msg'), otpErrText(r.error)); b.disabled = false; }
+  });
+
   $('btn-resend').addEventListener('click', function () { resend(signupEmail, this, $('sent-msg')); });
 
   // ---- forgot ----
