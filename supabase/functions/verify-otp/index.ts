@@ -28,11 +28,13 @@ const json = (b: unknown, s: number, o: string) =>
 
 function normPhone(raw: string): string {
   let p = String(raw || "").replace(/[^\d+]/g, "");
-  if (p.startsWith("+66")) { /* ok */ }
+  if (p.startsWith("+")) { /* already E.164 */ }
   else if (p.startsWith("66")) p = "+" + p;
-  else if (p.startsWith("0")) p = "+66" + p.slice(1);
+  else if (p.startsWith("856")) p = "+" + p;
   else return "";
-  return /^\+66[689]\d{8}$/.test(p) ? p : "";
+  if (/^\+66[689]\d{8}$/.test(p)) return p;   // Thai mobile
+  if (/^\+85620\d{8}$/.test(p)) return p;     // Lao mobile
+  return "";
 }
 async function sha256(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));

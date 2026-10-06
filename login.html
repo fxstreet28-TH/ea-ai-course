@@ -61,8 +61,14 @@
         </div>
         <div class="field">
           <label for="signup-phone">เบอร์โทรศัพท์</label>
-          <input type="tel" id="signup-phone" name="phone" autocomplete="tel" inputmode="tel" placeholder="08x-xxx-xxxx" required>
-          <div class="hint">เบอร์มือถือไทย — ใช้รับรหัส OTP ยืนยันตัวตน</div>
+          <div style="display:flex;gap:8px">
+            <select id="signup-country" name="country" style="flex:0 0 auto;width:118px">
+              <option value="TH" selected>🇹🇭 +66</option>
+              <option value="LA">🇱🇦 +856</option>
+            </select>
+            <input type="tel" id="signup-phone" name="phone" autocomplete="tel" inputmode="tel" placeholder="0812345678" required style="flex:1">
+          </div>
+          <div class="hint">เบอร์มือถือ (ไทย/ลาว) — ใส่ 0 นำหน้าหรือไม่ก็ได้ ระบบแปลงให้อัตโนมัติ · ใช้รับรหัส OTP</div>
         </div>
         <div class="field">
           <label for="signup-email">อีเมล</label>
@@ -308,9 +314,17 @@
   // ---- signup (step 1: collect info → send OTP) ----
   var signupEmail = '';
   var pendingSignup = null;   // {first_name,last_name,phone,email,password}
-  var PHONE_RE = /^0[689]\d{8}$/;   // Thai mobile 0xx-xxx-xxxx
 
   function cleanPhone(raw) { return String(raw || '').replace(/[^\d]/g, ''); }
+
+  // Normalize a national number to E.164 for the chosen country.
+  // Accepts with or without a leading 0. Returns '' if invalid.
+  function toE164(country, digits) {
+    var d = String(digits || '').replace(/^0+/, '');   // strip leading zero(s)
+    if (country === 'TH') return /^[689]\d{8}$/.test(d) ? '+66' + d : '';   // Thai mobile: 9 digits, starts 6/8/9
+    if (country === 'LA') return /^20\d{8}$/.test(d) ? '+856' + d : '';      // Lao mobile: 20 + 8 digits
+    return '';
+  }
 
   function otpErrText(code) {
     var m = {
@@ -336,12 +350,15 @@
     var msg = $('signup-msg');
     var first = $('signup-first').value.trim();
     var last = $('signup-last').value.trim();
-    var phone = cleanPhone($('signup-phone').value);
+    var country = $('signup-country').value;
+    var phone = toE164(country, cleanPhone($('signup-phone').value));
     var email = $('signup-email').value.trim();
     var pw = $('signup-password').value;
     var pw2 = $('signup-confirm').value;
     if (!first || !last) return showMsg(msg, 'กรุณากรอกชื่อและนามสกุล');
-    if (!PHONE_RE.test(phone)) return showMsg(msg, 'เบอร์มือถือไม่ถูกต้อง (เช่น 0812345678)');
+    if (!phone) return showMsg(msg, country === 'LA'
+      ? 'เบอร์มือถือลาวไม่ถูกต้อง (เช่น 020 XXXX XXXX)'
+      : 'เบอร์มือถือไทยไม่ถูกต้อง (เช่น 081 234 5678)');
     if (!EMAIL_RE.test(email)) return showMsg(msg, 'รูปแบบอีเมลไม่ถูกต้อง');
     if (pw.length < 8) return showMsg(msg, 'รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร');
     if (pw !== pw2) return showMsg(msg, 'รหัสผ่านทั้งสองช่องไม่ตรงกัน');
