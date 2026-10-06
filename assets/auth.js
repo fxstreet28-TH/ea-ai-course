@@ -148,11 +148,13 @@
     return res.data;
   }
 
-  async function signUpEmail(email, password) {
+  async function signUpEmail(email, password, captchaToken) {
+    var opts = { emailRedirectTo: redirectUrl(DEFAULT_NEXT) };
+    if (captchaToken) opts.captchaToken = captchaToken;
     var res = await need().auth.signUp({
       email: email,
       password: password,
-      options: { emailRedirectTo: redirectUrl(DEFAULT_NEXT) }
+      options: opts
     });
     if (res.error) throw res.error;
     // With "Confirm email" on, an existing address returns a user with no identities instead of an error.
@@ -161,14 +163,18 @@
     return res.data;
   }
 
-  async function signInEmail(email, password) {
-    var res = await need().auth.signInWithPassword({ email: email, password: password });
+  async function signInEmail(email, password, captchaToken) {
+    var opts = {};
+    if (captchaToken) opts.captchaToken = captchaToken;
+    var res = await need().auth.signInWithPassword({ email: email, password: password, options: opts });
     if (res.error) throw res.error;
     return res.data;
   }
 
-  async function resetPassword(email) {
-    var res = await need().auth.resetPasswordForEmail(email, { redirectTo: redirectUrl('/reset.html') });
+  async function resetPassword(email, captchaToken) {
+    var opts = { redirectTo: redirectUrl('/reset.html') };
+    if (captchaToken) opts.captchaToken = captchaToken;
+    var res = await need().auth.resetPasswordForEmail(email, opts);
     if (res.error) throw res.error;
     return res.data;
   }
@@ -179,8 +185,10 @@
     return res.data;
   }
 
-  async function resendConfirmation(email) {
-    var res = await need().auth.resend({ type: 'signup', email: email, options: { emailRedirectTo: redirectUrl(DEFAULT_NEXT) } });
+  async function resendConfirmation(email, captchaToken) {
+    var opts = { emailRedirectTo: redirectUrl(DEFAULT_NEXT) };
+    if (captchaToken) opts.captchaToken = captchaToken;
+    var res = await need().auth.resend({ type: 'signup', email: email, options: opts });
     if (res.error) throw res.error;
     return res.data;
   }

@@ -125,6 +125,46 @@
   }
   function errText(e) { return A ? A.mapAuthError(e) : 'ระบบสมาชิกยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง'; }
 
+  // ---- Cloudflare Turnstile (bot protection) ----
+  // One invisible widget, executed on demand to mint a fresh single-use token
+  // before each auth action. Off entirely when TURNSTILE_SITE_KEY is empty.
+  var CAP_KEY = (window.EA_CONFIG || {}).TURNSTILE_SITE_KEY || '';
+  var capWidget = null, capReady = false, capResolve = null;
+  function initCaptcha() {
+    if (!CAP_KEY) return;
+    var box = document.createElement('div');
+    box.id = 'cf-cap';
+    box.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;overflow:hidden';
+    document.body.appendChild(box);
+    var s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true; s.defer = true;
+    s.onload = function () {
+      try {
+        capWidget = window.turnstile.render('#cf-cap', {
+          sitekey: CAP_KEY, size: 'invisible',
+          callback: function (t) { if (capResolve) { var r = capResolve; capResolve = null; r(t); } },
+          'error-callback': function () { if (capResolve) { var r = capResolve; capResolve = null; r(''); } }
+        });
+        capReady = true;
+      } catch (e) { /* turnstile unavailable — token() returns undefined */ }
+    };
+    document.head.appendChild(s);
+  }
+  // Returns a fresh token (string), or undefined when captcha is off.
+  function capToken() {
+    return new Promise(function (resolve) {
+      if (!CAP_KEY) return resolve(undefined);
+      if (!capReady || !window.turnstile) return resolve(undefined);
+      try { window.turnstile.reset(capWidget); } catch (e) {}
+      capResolve = resolve;
+      try { window.turnstile.execute(capWidget); } catch (e) { capResolve = null; resolve(undefined); }
+      // Safety timeout so the UI never hangs if the challenge stalls.
+      setTimeout(function () { if (capResolve) { var r = capResolve; capResolve = null; r(undefined); } }, 15000);
+    });
+  }
+  initCaptcha();
+
   // ---- views ----
   function go(view) {
     clearMsgs();
@@ -177,7 +217,8 @@
     showMsg(msgEl, '');
     btn.disabled = true; btn.textContent = BUSY;
     try {
-      await A.resendConfirmation(email);
+      var ct = await capToken();
+      await A.resendConfirmation(email, ct);
       showMsg(msgEl, 'ส่งอีเมลยืนยันอีกครั้งแล้ว', 'success');
       startCooldown(btn, 60);
     } catch (e) {
@@ -209,7 +250,8 @@
     showMsg(msg, '');
     setBusy(btn, true);
     try {
-      await A.signInEmail(email, pw);
+      var ct = await capToken();
+      await A.signInEmail(email, pw, ct);
       location.replace(next);
     } catch (e) {
       showMsg(msg, errText(e));
@@ -239,7 +281,8 @@
     showMsg(msg, '');
     setBusy(btn, true);
     try {
-      var data = await A.signUpEmail(email, pw);
+      var ct = await capToken();
+      var data = await A.signUpEmail(email, pw, ct);
       if (data && data.session) { location.replace(next); return; } // "Confirm email" disabled
       signupEmail = email;
       $('sent-email').textContent = email;
@@ -262,7 +305,8 @@
     showMsg(msg, '');
     setBusy(btn, true);
     try {
-      await A.resetPassword(email);
+      var ct = await capToken();
+      await A.resetPassword(email, ct);
       showMsg(msg, 'ถ้าอีเมลนี้มีในระบบ เราส่งลิงก์ตั้งรหัสใหม่ให้แล้ว (เช็คกล่องจดหมาย/สแปม)', 'success');
     } catch (e) {
       showMsg(msg, errText(e));
