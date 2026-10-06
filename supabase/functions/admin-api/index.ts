@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
 
   if (action === "list_customers") {
     const { data: profs } = await admin.from("profiles")
-      .select("id,email,full_name,has_access,access_granted_at,created_at")
+      .select("id,email,full_name,phone,phone_verified,has_access,access_granted_at,created_at")
       .order("created_at", { ascending: false }).limit(500);
     const { data: codes } = await admin.from("access_codes")
       .select("code,email,redeemed_by,status,created_at");
@@ -118,7 +118,9 @@ Deno.serve(async (req) => {
     const rows = (profs || []).map((p: any) => {
       const pay = payByUser[p.id] || payByEmail[(p.email || "").toLowerCase()] || null;
       return {
-        email: p.email, name: p.full_name, has_access: p.has_access,
+        email: p.email, name: p.full_name,
+        phone: p.phone || null, phone_verified: !!p.phone_verified,
+        has_access: p.has_access,
         created_at: p.created_at, access_granted_at: p.access_granted_at,
         code: byUser[p.id] ? pretty(byUser[p.id].code) : null,
         payment: pay ? {
