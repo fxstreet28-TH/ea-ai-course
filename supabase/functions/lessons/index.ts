@@ -62,11 +62,15 @@ Deno.serve(async (req) => {
       const sa = await admin.storage.from("attachments").createSignedUrl(a.storage_path, PLAYBACK_TTL);
       myAtts.push({ title: a.title, mime: a.mime, size_bytes: a.size_bytes, url: sa.data?.signedUrl || null });
     }
+    // Bunny Stream embed URLs are HTML pages (iframe), not <video src>. Flag them
+    // so the player renders an <iframe> instead of a <video> element.
+    const provider = (l.external_url && /mediadelivery\.net|b-cdn\.net/.test(l.external_url))
+      ? "bunny" : "file";
     lessons.push({
       id: l.id, position: l.position, title: l.title,
       title_en: l.title_en, description: l.description,
       kind: l.kind || "video", content: l.content || null, is_intro: !!l.is_intro,
-      poster_url: l.poster_url, url, attachments: myAtts,
+      poster_url: l.poster_url, url, provider, attachments: myAtts,
     });
   }
 
