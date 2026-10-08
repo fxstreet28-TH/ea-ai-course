@@ -41,7 +41,7 @@
   .side .who button{margin-top:10px;width:100%;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:9px;cursor:pointer;font-family:inherit}
   .side .who button:hover{color:var(--red);border-color:var(--red)}
 
-  .main{padding:30px 34px;max-width:1200px}
+  .main{padding:30px 34px;max-width:1200px;min-width:0}
   .top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:26px}
   .eyebrow{font-family:'Space Grotesk';font-size:11px;letter-spacing:3px;color:var(--gold);text-transform:uppercase}
   h1{font-family:'Space Grotesk';font-size:clamp(24px,3vw,32px);margin:6px 0 2px;font-weight:700}
@@ -131,6 +131,11 @@
   .msg.ok{background:#0f1a12;color:var(--green);border:1px solid #7ee0a844}
   .msg.err{background:#1a1113;color:var(--red);border:1px solid #ff7b8a44}
 
+  .sp-lessons{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .sp-lessons li{display:flex;align-items:center;gap:10px;background:#ffffff08;border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:14px}
+  .seg.sm .seg-btn{font-size:13px;padding:7px 13px}
+  @media(max-width:560px){ .cards.two{grid-template-columns:1fr 1fr} .card .val{font-size:28px} .seg.sm{width:100%} .seg.sm .seg-btn{flex:1;padding:7px 6px} }
+
   .view{display:none}
   .view.active{display:block}
   .empty{text-align:center;color:var(--muted);padding:36px}
@@ -165,6 +170,7 @@
     <nav class="nav">
       <button data-view="dashboard" class="active"><span class="ico">▦</span> Dashboard</button>
       <button data-view="customers"><span class="ico">◍</span> Customers</button>
+      <button data-view="special"><span class="ico">🔑</span> ปลดล็อก Special</button>
       <button data-view="lessons"><span class="ico">▶</span> บทเรียน</button>
       <button data-view="engagement"><span class="ico">📊</span> Engagement</button>
       <button data-view="addclass"><span class="ico">＋</span> Add Class</button>
@@ -208,6 +214,38 @@
         <table>
           <thead><tr><th>อีเมล</th><th>ชื่อ</th><th>เบอร์โทร</th><th>สถานะ</th><th>การชำระเงิน</th><th>รหัสที่ใช้</th><th>สมัครเมื่อ</th><th></th></tr></thead>
           <tbody id="cust-body"><tr><td colspan="8" class="empty">กำลังโหลด…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SPECIAL ACCESS -->
+    <section class="view" id="view-special">
+      <div class="top"><div><div class="eyebrow">ADMIN · SPECIAL ACCESS</div><h1>ปลดล็อกบทเรียนพิเศษ</h1><p class="sub">เปิดสิทธิ์เข้าถึงบทเรียน Special ให้ลูกค้าเป็นรายคน</p></div></div>
+
+      <div class="panel-box">
+        <h3>🔒 บทที่ล็อกอยู่</h3>
+        <p class="desc">บทเรียนที่ตั้งเป็น Special — ลูกค้าที่ถูกปลดล็อกจะเข้าดูบทเหล่านี้ได้</p>
+        <ul class="sp-lessons" id="sp-lessons"><li class="muted">กำลังโหลด…</li></ul>
+      </div>
+
+      <div class="cards two">
+        <div class="card"><div class="lbl">Special Unlocked</div><div class="val green" id="sp-unlocked">–</div><div class="note">ปลดล็อกบทเรียนพิเศษแล้ว</div></div>
+        <div class="card"><div class="lbl">Locked (ยังไม่ปลด)</div><div class="val" id="sp-locked">–</div><div class="note">ยังไม่ได้สิทธิ์ Special</div></div>
+      </div>
+
+      <div class="toolbar">
+        <input class="search" id="sp-search" placeholder="ค้นหาอีเมล / ชื่อ…">
+        <div class="seg sm" id="sp-filter">
+          <button type="button" class="seg-btn active" data-f="all">ทั้งหมด</button>
+          <button type="button" class="seg-btn" data-f="on">ปลดล็อกแล้ว</button>
+          <button type="button" class="seg-btn" data-f="off">ยังล็อก</button>
+        </div>
+        <button class="btn ghost sm" id="sp-reload">↻ รีเฟรช</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>อีเมล</th><th>ชื่อ</th><th>Special</th><th>ปลดล็อกเมื่อ</th><th></th></tr></thead>
+          <tbody id="sp-body"><tr><td colspan="5" class="empty">กำลังโหลด…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -397,21 +435,10 @@
       }
       var sp=c.has_special_access?'<span class="badge on" title="ปลดล็อกเมื่อ '+esc(fmtDate(c.special_access_granted_at))+'">Special: ปลดล็อกแล้ว</span>':'<span class="badge mute">Special: ล็อก</span>';
       var act=c.has_access?'':'<button class="btn sm" data-grant="'+esc(c.email)+'">เปิดสิทธิ์</button>';
-      var spAct=c.has_special_access
-        ?'<button class="btn sm ghost" data-special="'+esc(c.email)+'" data-on="0">ล็อก Special</button>'
-        :'<button class="btn sm ghost" data-special="'+esc(c.email)+'" data-on="1">ปลดล็อก Special</button>';
-      return '<tr><td>'+esc(c.email)+'</td><td>'+esc(c.name||'–')+'</td><td>'+phone+'</td><td><div class="cell-stack">'+badge+sp+'</div></td><td>'+pay+'</td><td>'+code+'</td><td class="muted">'+fmtDate(c.created_at)+'</td><td><div class="act-row">'+act+spAct+'</div></td></tr>';
+      return '<tr><td>'+esc(c.email)+'</td><td>'+esc(c.name||'–')+'</td><td>'+phone+'</td><td><div class="cell-stack">'+badge+sp+'</div></td><td>'+pay+'</td><td>'+code+'</td><td class="muted">'+fmtDate(c.created_at)+'</td><td><div class="act-row">'+act+'</div></td></tr>';
     }).join('');
     Array.prototype.forEach.call(tb.querySelectorAll('[data-grant]'),function(b){
       b.addEventListener('click',async function(){ b.disabled=true;b.textContent='...'; var r=await api('grant_access',{email:b.getAttribute('data-grant')}); if(r.body.result==='ok'){ await loadCustomers(); } else { b.disabled=false;b.textContent='เปิดสิทธิ์'; } });
-    });
-    Array.prototype.forEach.call(tb.querySelectorAll('[data-special]'),function(b){
-      b.addEventListener('click',async function(){
-        var on=b.getAttribute('data-on')==='1', t=b.textContent;
-        b.disabled=true;b.textContent='...';
-        var r=await api(on?'grant_special':'revoke_special',{email:b.getAttribute('data-special')});
-        if(r.body.result==='ok'){ await loadCustomers(); } else { b.disabled=false;b.textContent=t; alert('อัปเดตสิทธิ์ Special ไม่สำเร็จ'+(r.body.detail?(': '+r.body.detail):'')); }
-      });
     });
   }
 
@@ -423,6 +450,7 @@
     $('s-rev').textContent=s.revenue_thb!=null?('฿'+Number(s.revenue_thb).toLocaleString('th-TH')):'–';
     $('s-codes').textContent=s.codes_issued!=null?s.codes_issued:'–';
     $('s-special').textContent=s.special_users!=null?s.special_users:'–';
+    setSpecialStats(s);
   }
   async function loadCustomers(){
     $('cust-body').innerHTML='<tr><td colspan="8" class="empty">กำลังโหลด…</td></tr>';
@@ -431,12 +459,88 @@
     loadStats();
   }
 
+  // ---------------- Special access ----------------
+  // Second UI over the same admin-api grant_special / revoke_special actions.
+  var spFilter='all';
+  function setSpecialStats(s){
+    if(s.special_users==null||s.total_users==null) return;
+    $('sp-unlocked').textContent=s.special_users;
+    $('sp-locked').textContent=Math.max(0,s.total_users-s.special_users);
+  }
+  function spBadge(on){ return on?'<span class="badge on">ปลดล็อกแล้ว</span>':'<span class="badge mute">ล็อก</span>'; }
+  function renderSpecial(){
+    var q=($('sp-search').value||'').toLowerCase().trim();
+    var rows=customers.filter(function(c){
+      if(spFilter==='on'&&!c.has_special_access) return false;
+      if(spFilter==='off'&&c.has_special_access) return false;
+      return !q || (c.email&&c.email.toLowerCase().indexOf(q)>-1) || (c.name&&c.name.toLowerCase().indexOf(q)>-1);
+    }).sort(function(a,b){
+      // Locked first, then newest signup first.
+      if(!!a.has_special_access!==!!b.has_special_access) return a.has_special_access?1:-1;
+      return String(b.created_at||'').localeCompare(String(a.created_at||''));
+    });
+    var tb=$('sp-body');
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="5" class="empty">ไม่พบข้อมูล</td></tr>'; return; }
+    tb.innerHTML=rows.map(function(c){
+      var btn=c.has_special_access
+        ?'<button class="btn sm ghost" data-sp="'+esc(c.email)+'" data-on="0">ล็อก Special</button>'
+        :'<button class="btn sm" data-sp="'+esc(c.email)+'" data-on="1">ปลดล็อก Special</button>';
+      return '<tr><td>'+esc(c.email)+'</td><td>'+esc(c.name||'–')+'</td><td>'+spBadge(c.has_special_access)+'</td><td class="muted">'+fmtDate(c.special_access_granted_at)+'</td><td>'+btn+'</td></tr>';
+    }).join('');
+  }
+  async function toggleSpecial(b){
+    var email=b.getAttribute('data-sp'), on=b.getAttribute('data-on')==='1', t=b.textContent;
+    b.disabled=true; b.textContent='...';
+    var r=await api(on?'grant_special':'revoke_special',{email:email});
+    if(r.body.result!=='ok'){ b.disabled=false; b.textContent=t; alert('อัปเดตสิทธิ์ Special ไม่สำเร็จ'+(r.body.detail?(': '+r.body.detail):'')); return; }
+    var c=customers.filter(function(x){ return x.email===email; })[0];
+    var at=on?new Date().toISOString():null;
+    if(c){ c.has_special_access=on; c.special_access_granted_at=at; }
+    // Update the row in place (keep current order so it doesn't jump away).
+    var tr=b.closest('tr');
+    tr.children[2].innerHTML=spBadge(on);
+    tr.children[3].textContent=fmtDate(at);
+    b.disabled=false; b.setAttribute('data-on',on?'0':'1');
+    b.className=on?'btn sm ghost':'btn sm'; b.textContent=on?'ล็อก Special':'ปลดล็อก Special';
+    renderCustomers($('cust-search').value);
+    loadStats();
+  }
+  async function loadSpecialLessons(){
+    var ul=$('sp-lessons'); ul.innerHTML='<li class="muted">กำลังโหลด…</li>';
+    var r=await api('list_lessons');
+    var ls=((r.body&&r.body.lessons)||[]).filter(function(l){ return l.requires_special_access; });
+    ul.innerHTML=ls.length
+      ? ls.map(function(l){ return '<li><span>🔒</span><span>'+esc(l.title)+'</span></li>'; }).join('')
+      : '<li class="muted">ยังไม่มีบทเรียนที่ตั้งเป็น Special</li>';
+  }
+  async function loadSpecial(){
+    $('sp-body').innerHTML='<tr><td colspan="5" class="empty">กำลังโหลด…</td></tr>';
+    loadSpecialLessons();
+    var r=await api('list_customers'); customers=(r.body&&r.body.customers)||[];
+    renderSpecial();
+    renderCustomers($('cust-search').value);
+    loadStats();
+  }
+  function bindSpecial(){
+    $('sp-search').addEventListener('input',renderSpecial);
+    $('sp-reload').addEventListener('click',loadSpecial);
+    $('sp-body').addEventListener('click',function(e){ var b=e.target.closest('[data-sp]'); if(b&&!b.disabled) toggleSpecial(b); });
+    Array.prototype.forEach.call($('sp-filter').querySelectorAll('.seg-btn'),function(b){
+      b.addEventListener('click',function(){
+        spFilter=b.getAttribute('data-f');
+        Array.prototype.forEach.call($('sp-filter').querySelectorAll('.seg-btn'),function(x){ x.classList.toggle('active',x===b); });
+        renderSpecial();
+      });
+    });
+  }
+
   function showView(v){
     Array.prototype.forEach.call(document.querySelectorAll('.nav button'),function(b){ b.classList.toggle('active',b.getAttribute('data-view')===v); });
     Array.prototype.forEach.call(document.querySelectorAll('.view'),function(s){ s.classList.toggle('active',s.id==='view-'+v); });
     if(v==='customers'&&!customers.length) loadCustomers();
     if(v==='lessons'&&!lessonsLoadedOnce){ lessonsLoadedOnce=true; loadLessonList(); }
     if(v==='engagement') loadEngagement();
+    if(v==='special') loadSpecial();
   }
 
   // ---------------- Engagement ----------------
@@ -777,6 +881,7 @@
     $('s-rev').textContent=s.revenue_thb!=null?('฿'+Number(s.revenue_thb).toLocaleString('th-TH')):'–';
     $('s-codes').textContent=s.codes_issued!=null?s.codes_issued:'–';
     $('s-special').textContent=s.special_users!=null?s.special_users:'–';
+    setSpecialStats(s);
 
     $('loading').hidden = true;
     $('app').hidden = false;
@@ -788,6 +893,7 @@
     bindAddClass();
     bindLessons();
     bindEngagement();
+    bindSpecial();
   }
   main();
 })();
