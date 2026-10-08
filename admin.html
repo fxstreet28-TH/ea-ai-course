@@ -86,6 +86,9 @@
   .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
   .badge.on{background:#0f1a12;color:var(--green);border:1px solid #7ee0a844}
   .badge.off{background:#1a1113;color:var(--red);border:1px solid #ff7b8a44}
+  .badge.mute{background:#16161f;color:var(--muted);border:1px solid var(--line)}
+  .cell-stack{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+  .act-row{display:flex;gap:6px;align-items:center}
   .mono{font-family:'Space Grotesk',monospace;letter-spacing:1px;color:var(--gold2)}
   .paylink{color:var(--green);text-decoration:none;border-bottom:1px dashed #7ee0a855}
   .paylink:hover{color:#a8f5c8}
@@ -190,6 +193,7 @@
         <div class="card"><div class="lbl">Awaiting</div><div class="val" id="s-unpaid">–</div><div class="note">ยังไม่เปิดสิทธิ์</div></div>
         <div class="card"><div class="lbl">Revenue</div><div class="val gold" id="s-rev">–</div><div class="note">฿ จากออเดอร์ที่จ่ายแล้ว</div></div>
         <div class="card"><div class="lbl">Codes Issued</div><div class="val" id="s-codes">–</div><div class="note">รหัสที่สร้างทั้งหมด</div></div>
+        <div class="card"><div class="lbl">Special Unlocked</div><div class="val green" id="s-special">–</div><div class="note">ปลดล็อกบทเรียนพิเศษแล้ว</div></div>
       </div>
     </section>
 
@@ -391,11 +395,23 @@
         if(pi){ pay='<a class="mono paylink" href="https://dashboard.stripe.com/payments/'+esc(pi)+'" target="_blank" rel="noopener" title="ตรวจสอบใน Stripe">'+amt+' ↗</a>'; }
         else { pay='<span class="mono" style="color:var(--green)">'+amt+'</span>'; }
       }
+      var sp=c.has_special_access?'<span class="badge on" title="ปลดล็อกเมื่อ '+esc(fmtDate(c.special_access_granted_at))+'">Special: ปลดล็อกแล้ว</span>':'<span class="badge mute">Special: ล็อก</span>';
       var act=c.has_access?'':'<button class="btn sm" data-grant="'+esc(c.email)+'">เปิดสิทธิ์</button>';
-      return '<tr><td>'+esc(c.email)+'</td><td>'+esc(c.name||'–')+'</td><td>'+phone+'</td><td>'+badge+'</td><td>'+pay+'</td><td>'+code+'</td><td class="muted">'+fmtDate(c.created_at)+'</td><td>'+act+'</td></tr>';
+      var spAct=c.has_special_access
+        ?'<button class="btn sm ghost" data-special="'+esc(c.email)+'" data-on="0">ล็อก Special</button>'
+        :'<button class="btn sm ghost" data-special="'+esc(c.email)+'" data-on="1">ปลดล็อก Special</button>';
+      return '<tr><td>'+esc(c.email)+'</td><td>'+esc(c.name||'–')+'</td><td>'+phone+'</td><td><div class="cell-stack">'+badge+sp+'</div></td><td>'+pay+'</td><td>'+code+'</td><td class="muted">'+fmtDate(c.created_at)+'</td><td><div class="act-row">'+act+spAct+'</div></td></tr>';
     }).join('');
     Array.prototype.forEach.call(tb.querySelectorAll('[data-grant]'),function(b){
       b.addEventListener('click',async function(){ b.disabled=true;b.textContent='...'; var r=await api('grant_access',{email:b.getAttribute('data-grant')}); if(r.body.result==='ok'){ await loadCustomers(); } else { b.disabled=false;b.textContent='เปิดสิทธิ์'; } });
+    });
+    Array.prototype.forEach.call(tb.querySelectorAll('[data-special]'),function(b){
+      b.addEventListener('click',async function(){
+        var on=b.getAttribute('data-on')==='1', t=b.textContent;
+        b.disabled=true;b.textContent='...';
+        var r=await api(on?'grant_special':'revoke_special',{email:b.getAttribute('data-special')});
+        if(r.body.result==='ok'){ await loadCustomers(); } else { b.disabled=false;b.textContent=t; alert('อัปเดตสิทธิ์ Special ไม่สำเร็จ'+(r.body.detail?(': '+r.body.detail):'')); }
+      });
     });
   }
 
@@ -406,6 +422,7 @@
     $('s-unpaid').textContent=s.unpaid_users!=null?s.unpaid_users:'–';
     $('s-rev').textContent=s.revenue_thb!=null?('฿'+Number(s.revenue_thb).toLocaleString('th-TH')):'–';
     $('s-codes').textContent=s.codes_issued!=null?s.codes_issued:'–';
+    $('s-special').textContent=s.special_users!=null?s.special_users:'–';
   }
   async function loadCustomers(){
     $('cust-body').innerHTML='<tr><td colspan="8" class="empty">กำลังโหลด…</td></tr>';
@@ -759,6 +776,7 @@
     $('s-unpaid').textContent=s.unpaid_users!=null?s.unpaid_users:'–';
     $('s-rev').textContent=s.revenue_thb!=null?('฿'+Number(s.revenue_thb).toLocaleString('th-TH')):'–';
     $('s-codes').textContent=s.codes_issued!=null?s.codes_issued:'–';
+    $('s-special').textContent=s.special_users!=null?s.special_users:'–';
 
     $('loading').hidden = true;
     $('app').hidden = false;

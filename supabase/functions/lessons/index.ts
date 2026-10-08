@@ -2,6 +2,10 @@
 // Returns published lessons with short-lived signed playback URLs,
 // but ONLY to users whose profile has_access = true. Video paths in the
 // private 'lessons' bucket are never exposed — only time-limited URLs.
+// Lessons flagged requires_special_access additionally need
+// profiles.has_special_access = true: for everyone else they are returned as
+// locked metadata only (no playback URL, no attachments, no article body), and
+// a direct request for one ({ lesson_id }) is refused with 403.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -38,20 +42,46 @@ Deno.serve(async (req) => {
     { auth: { persistSession: false } });
 
   // Gate on paid access.
-  const { data: prof } = await admin.from("profiles").select("has_access").eq("id", ud.user.id).single();
+  const { data: prof } = await admin.from("profiles").select("has_access,has_special_access").eq("id", ud.user.id).single();
   if (!prof || !prof.has_access) return json({ error: "no_access", lessons: [] }, 403, origin);
+  const hasSpecial = prof.has_special_access === true;
 
-  // Published lessons, ordered.
-  const { data: rows } = await admin.from("lessons")
-    .select("id,position,title,title_en,description,storage_path,external_url,poster_url,kind,content,is_intro")
-    .eq("is_published", true)
+  let body: any = {};
+  try { body = await req.json(); } catch (_) {}
+  const lessonId = body && body.lesson_id ? String(body.lesson_id) : "";
+
+  // Published lessons, ordered (or the single one requested).
+  let q = admin.from("lessons")
+    .select("id,position,title,title_en,description,storage_path,external_url,poster_url,kind,content,is_intro,requires_special_access")
+    .eq("is_published", true);
+  if (lessonId) q = q.eq("id", lessonId);
+  const { data: rows } = await q
     .order("position", { ascending: true }).order("created_at", { ascending: true });
+
+  // Direct request for a special lesson without special access → 403, nothing minted.
+  if (lessonId) {
+    if (!rows || rows.length === 0) return json({ error: "not_found" }, 404, origin);
+    if (rows[0].requires_special_access && !hasSpecial) {
+      return json({ error: "special_access_required" }, 403, origin);
+    }
+  }
 
   const { data: atts } = await admin.from("lesson_attachments")
     .select("*").order("position", { ascending: true }).order("created_at", { ascending: true });
 
   const lessons: any[] = [];
   for (const l of rows || []) {
+    // Special lesson, caller not unlocked: metadata only — no signed URLs.
+    if (l.requires_special_access && !hasSpecial) {
+      lessons.push({
+        id: l.id, position: l.position, title: l.title,
+        title_en: l.title_en, description: l.description,
+        kind: l.kind || "video", content: null, is_intro: !!l.is_intro,
+        poster_url: l.poster_url, url: null, provider: "file", attachments: [],
+        requires_special_access: true, locked: true,
+      });
+      continue;
+    }
     let url = l.external_url || null;
     if (!url && l.storage_path) {
       const s = await admin.storage.from("lessons").createSignedUrl(l.storage_path, PLAYBACK_TTL);
@@ -71,6 +101,7 @@ Deno.serve(async (req) => {
       title_en: l.title_en, description: l.description,
       kind: l.kind || "video", content: l.content || null, is_intro: !!l.is_intro,
       poster_url: l.poster_url, url, provider, attachments: myAtts,
+      requires_special_access: !!l.requires_special_access, locked: false,
     });
   }
 

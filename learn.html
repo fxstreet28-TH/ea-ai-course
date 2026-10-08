@@ -58,6 +58,13 @@
   .les-item .tx span{font-size:11.5px;color:var(--muted)}
   .les-item .kd{font-size:11px;color:var(--muted);white-space:nowrap}
   .les-item .pin{font-size:11px;color:var(--gold);display:flex;align-items:center;gap:4px;white-space:nowrap}
+  .les-item.les-locked{opacity:.55}
+  .les-item.les-locked:hover{border-color:var(--line)}
+  .les-item .lockb{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 9px;display:flex;align-items:center;gap:4px;white-space:nowrap}
+  .locked-panel{border:1px dashed var(--line);border-radius:14px;background:#0b0c1c;padding:34px 24px;text-align:center}
+  .locked-panel .lk-ico{font-size:40px;line-height:1;margin-bottom:12px}
+  .locked-panel b{display:block;font-family:'Space Grotesk',sans-serif;font-size:18px;color:var(--gold);margin-bottom:8px}
+  .locked-panel p{color:var(--muted);font-size:15px;line-height:1.8;margin:0}
 </style>
 </head>
 <body>
@@ -153,6 +160,13 @@
 
             <!-- Article mode -->
             <article id="stage-article" class="article-body" hidden></article>
+
+            <!-- Locked special lesson (requires_special_access && !has_special_access) -->
+            <div id="stage-locked" class="locked-panel" hidden>
+              <div class="lk-ico">🔒</div>
+              <b>บทเรียนพิเศษ (Special)</b>
+              <p>บทนี้สงวนสำหรับนักเรียนที่ได้รับสิทธิ์พิเศษ<br>กรุณาติดต่อแอดมินเพื่อปลดล็อก</p>
+            </div>
           </div>
 
           <!-- Attachments for current lesson -->
@@ -215,6 +229,9 @@
     $('banner-unconfirmed').hidden = !!user.email_confirmed_at;
   }
 
+  // Second, per-user flag for lessons marked requires_special_access.
+  var hasSpecialAccess = false;
+
   async function loadAccess(user) {
     $('profile-msg').textContent = '';
     var hasAccess = false;
@@ -222,6 +239,7 @@
       var res = await A.getClient().from('profiles').select('*').eq('id', user.id).single();
       if (res.error) throw res.error;
       hasAccess = !!(res.data && res.data.has_access);
+      hasSpecialAccess = !!(res.data && res.data.has_special_access);
     } catch (e) {
       var m = $('profile-msg');
       m.className = 'msg error';
@@ -396,6 +414,20 @@
       // Tear down both players first so switching never leaves audio playing.
       try{ lv.pause(); }catch(e){}
       clearEmbed();
+      $('stage-locked').hidden = true;
+      if(ls.specialLocked){
+        // Special lesson, not unlocked: no player, no attachments.
+        $('stage-video-wrap').hidden = true;
+        $('stage-article').hidden = true; $('stage-article').innerHTML = '';
+        lv.querySelector('source').setAttribute('src', ''); lv.removeAttribute('poster');
+        $('stage-locked').hidden = false;
+        renderFiles([]);
+        try { $('lesson-stage').scrollIntoView({ behavior:'smooth', block:'start' }); } catch(e){}
+        Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function(el){
+          el.classList.toggle('lesson-active', el.getAttribute('data-lesson')===String(ls.key));
+        });
+        return;
+      }
       var isStream = ls.kind!=='article' && ls.provider==='bunny' && ls.src;
       if(ls.kind==='article'){
         $('stage-video-wrap').hidden = true;
@@ -433,6 +465,13 @@
     }
 
     function itemHtml(ls){
+      if(ls.specialLocked){
+        var noHtml = ls.isIntro ? '<span class="no intro">★</span>' : '<span class="no">'+(ls.no<10?'0'+ls.no:ls.no)+'</span>';
+        return '<button type="button" class="les-item les-locked" data-lesson="'+esc(ls.key)+'" title="บทเรียนพิเศษ — ติดต่อแอดมินเพื่อปลดล็อก">'+
+          noHtml+
+          '<span class="tx"><b>'+esc(ls.title)+'</b>'+(ls.en?'<span>'+esc(ls.en)+'</span>':'')+'</span>'+
+          '<span class="lockb">🔒 ล็อก</span></button>';
+      }
       var locked = (ls.kind!=='article' && !ls.src);
       var numHtml = ls.isIntro
         ? '<span class="no intro">★</span>'
@@ -466,7 +505,7 @@
       Array.prototype.forEach.call(document.querySelectorAll('[data-lesson]'), function(el){
         el.addEventListener('click', function(){
           var ls = LESSONS.filter(function(x){ return String(x.key)===el.getAttribute('data-lesson'); })[0];
-          if(ls && !(ls.kind!=='article' && !ls.src)) openLesson(ls);
+          if(ls && (ls.specialLocked || !(ls.kind!=='article' && !ls.src))) openLesson(ls);
         });
       });
     }
@@ -487,8 +526,8 @@
       lessonsLoaded = true;
       renderLessons();
       // Open the first playable item (prefer บทที่ 1, else first intro).
-      var firstMain = LESSONS.filter(function(x){ return !x.isIntro && (x.kind==='article'||x.src); })[0];
-      var firstAny  = LESSONS.filter(function(x){ return x.kind==='article'||x.src; })[0];
+      var firstMain = LESSONS.filter(function(x){ return !x.isIntro && !x.specialLocked && (x.kind==='article'||x.src); })[0];
+      var firstAny  = LESSONS.filter(function(x){ return !x.specialLocked && (x.kind==='article'||x.src); })[0];
       openLesson(firstMain || firstAny);
     }
 
@@ -510,18 +549,22 @@
         var rows = (data && data.lessons) || [];
         if (rows.length) {
           applyLessons(rows.map(function(r){
+            // Server already withholds URLs/attachments for locked special lessons;
+            // the UI lock is driven by the flag, never by lesson number/position.
+            var specialLocked = !!r.locked || (!!r.requires_special_access && !hasSpecialAccess);
             return {
+              specialLocked: specialLocked,
               key: r.id,
               isIntro: !!r.is_intro,
               kind: r.kind==='article' ? 'article' : 'video',
               title: r.title,
               en: r.title_en || '',
               description: r.description || '',
-              src: r.url || null,
+              src: specialLocked ? null : (r.url || null),
               provider: r.provider==='bunny' ? 'bunny' : 'file',
-              content: r.content || '',
+              content: specialLocked ? '' : (r.content || ''),
               poster: r.poster_url || '',
-              attachments: r.attachments || []
+              attachments: specialLocked ? [] : (r.attachments || [])
             };
           }));
         }

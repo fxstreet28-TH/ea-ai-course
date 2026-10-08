@@ -1,5 +1,6 @@
 // LongLearnDo — admin CRM API. Admin-only (caller email must be in ADMIN_EMAILS).
-// verify_jwt = true. Actions: stats | list_customers | grant_access | revoke_access | resend_code
+// verify_jwt = true. Actions: stats | list_customers | grant_access | revoke_access |
+// grant_special | revoke_special | resend_code
 // Secrets: ADMIN_EMAILS (comma-separated), RESEND_API_KEY, EMAIL_FROM
 // Auto-injected: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -79,11 +80,12 @@ Deno.serve(async (req) => {
   const action = body.action || "";
 
   if (action === "stats") {
-    const [pAll, pPaid, oPaid, codes] = await Promise.all([
+    const [pAll, pPaid, oPaid, codes, pSpecial] = await Promise.all([
       admin.from("profiles").select("id", { count: "exact", head: true }),
       admin.from("profiles").select("id", { count: "exact", head: true }).eq("has_access", true),
       admin.from("course_orders").select("amount_total", { count: "exact" }).eq("status", "paid"),
       admin.from("access_codes").select("code", { count: "exact", head: true }),
+      admin.from("profiles").select("id", { count: "exact", head: true }).eq("has_special_access", true),
     ]);
     const revenue = (oPaid.data || []).reduce((s: number, r: any) => s + (r.amount_total || 0), 0) / 100;
     return json({
@@ -93,12 +95,13 @@ Deno.serve(async (req) => {
       paid_orders: oPaid.count || 0,
       revenue_thb: revenue,
       codes_issued: codes.count || 0,
+      special_users: pSpecial.count || 0,
     }, 200, origin);
   }
 
   if (action === "list_customers") {
     const { data: profs } = await admin.from("profiles")
-      .select("id,email,full_name,phone,phone_verified,has_access,access_granted_at,created_at")
+      .select("id,email,full_name,phone,phone_verified,has_access,access_granted_at,has_special_access,special_access_granted_at,created_at")
       .order("created_at", { ascending: false }).limit(500);
     const { data: codes } = await admin.from("access_codes")
       .select("code,email,redeemed_by,status,created_at");
@@ -121,6 +124,7 @@ Deno.serve(async (req) => {
         email: p.email, name: p.full_name,
         phone: p.phone || null, phone_verified: !!p.phone_verified,
         has_access: p.has_access,
+        has_special_access: !!p.has_special_access, special_access_granted_at: p.special_access_granted_at,
         created_at: p.created_at, access_granted_at: p.access_granted_at,
         code: byUser[p.id] ? pretty(byUser[p.id].code) : null,
         payment: pay ? {
@@ -153,6 +157,21 @@ Deno.serve(async (req) => {
     if (!prof || prof.length === 0) return json({ result: "no_user" }, 200, origin);
     await admin.from("profiles").update({ has_access: false }).eq("id", prof[0].id);
     return json({ result: "ok" }, 200, origin);
+  }
+
+  // Special lessons: second access flag, same service-role write path as has_access.
+  if (action === "grant_special" || action === "revoke_special") {
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!email) return json({ result: "no_email" }, 200, origin);
+    const { data: prof } = await admin.from("profiles").select("id").ilike("email", email).limit(1);
+    if (!prof || prof.length === 0) return json({ result: "no_user" }, 200, origin);
+    const grant = action === "grant_special";
+    const { error } = await admin.from("profiles").update({
+      has_special_access: grant,
+      special_access_granted_at: grant ? new Date().toISOString() : null,
+    }).eq("id", prof[0].id);
+    if (error) return json({ result: "error", detail: error.message }, 200, origin);
+    return json({ result: "ok", has_special_access: grant }, 200, origin);
   }
 
   if (action === "resend_code") {
@@ -245,6 +264,7 @@ Deno.serve(async (req) => {
     if (body.is_intro != null) patch.is_intro = !!body.is_intro;
     if (body.kind != null) patch.kind = body.kind === "article" ? "article" : "video";
     if (body.content != null) patch.content = String(body.content) || null;
+    if (body.requires_special_access != null) patch.requires_special_access = !!body.requires_special_access;
     const { error } = await admin.from("lessons").update(patch).eq("id", id);
     if (error) return json({ result: "error", detail: error.message }, 200, origin);
     return json({ result: "ok" }, 200, origin);
