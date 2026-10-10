@@ -5,6 +5,8 @@ window.EA_CONFIG = {
   SUPABASE_URL: "https://ttzmnrrsueuqpvrgjyat.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_siffz1XzUELrjxTBZYd83g_f2gRuO7d",
   SITE_URL: "https://ea-ai-course.vercel.app",
+  // ปุ่มแชท LINE ลอยมุมขวาล่าง (แก้ลิงก์ที่นี่ได้เลย). เว้นว่าง = ซ่อนปุ่ม
+  LINE_URL: "https://lin.ee/w4GwfxT",
   // Cloudflare Turnstile CAPTCHA (bot protection on login/signup/reset).
   // Leave empty = off. Paste the Turnstile SITE key here to turn it on,
   // then enable CAPTCHA in Supabase → Authentication → Attack Protection
