@@ -29,7 +29,7 @@
       "#line-float-btn:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(6,199,85,.6);}" +
       "#line-float-btn svg{flex:0 0 auto;display:block;}" +
       "#line-float-btn .line-float-text{white-space:nowrap;}" +
-      "@media (max-width:600px){#line-float-btn{right:16px;bottom:16px;width:56px;" +
+      "@media (max-width:600px){#line-float-btn{right:16px;bottom:92px;width:56px;" +
       "padding:0;justify-content:center;}#line-float-btn .line-float-text{display:none;}}" +
       "@media print{#line-float-btn{display:none !important;}}";
     document.head.appendChild(style);
