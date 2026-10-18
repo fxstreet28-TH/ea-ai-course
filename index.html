@@ -170,7 +170,7 @@ window.addEventListener('resize',resizeScene,{passive:true});resizeScene();
 function paint(t){requestAnimationFrame(paint);if(document.hidden||t-last<32)return;const dt=Math.min(t-last,64);last=t;ctx.clearRect(0,0,cw,ch);dots.forEach((p,i)=>{if(!motionPaused)p.y=(p.y-p.v*dt+1)%1;ctx.beginPath();ctx.fillStyle=i%3?'rgba(111,145,255,.45)':'rgba(67,231,255,.65)';ctx.arc(p.x*cw,p.y*ch,p.r,0,Math.PI*2);ctx.fill();});}requestAnimationFrame(paint);
 </script>
 <script defer src="/assets/config.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
 <script defer src="/assets/auth.js"></script>
 <script defer src="/assets/track.js"></script>
 <script defer src="/assets/line-float.js"></script>
